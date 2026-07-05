@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     target_url: str = ""
     target_token: str = ""
     db_path: Path = Path("artifacts/vitalprobe.db")
+    license_file: Path | None = None
 
 
 def get_settings() -> Settings:

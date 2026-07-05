@@ -160,3 +160,31 @@ def test_track_and_history_commands(
     assert result.exit_code == 0
     assert "VitalProbe history" in result.output
     assert "PASSED" in result.output
+
+
+def test_license_show_degrades_cleanly_to_free(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
+    result = runner.invoke(cli.app, ["license", "show"])
+    assert result.exit_code == 0
+    assert "tier: free" in result.output
+    assert "Free engine and reporting features remain available." in result.output
+
+
+def test_license_verify_rejects_tampered_file(tmp_path: Path) -> None:
+    path = tmp_path / "tampered.json"
+    path.write_text('{"licensee": "not-signed"}', encoding="utf-8")
+    result = runner.invoke(cli.app, ["license", "verify", str(path)])
+    assert result.exit_code == 2
+    assert "using the free tier" in result.output
+
+
+def test_gated_feature_command_shows_upgrade_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
+    result = runner.invoke(cli.app, ["license", "check", "mcp_server"])
+    assert result.exit_code == 2
+    assert "requires a paid VitalProbe license" in result.output
+    assert "Current tier: free" in result.output

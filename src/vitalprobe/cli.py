@@ -11,6 +11,12 @@ from rich.table import Table
 
 from vitalprobe import __version__
 from vitalprobe.config import get_settings
+from vitalprobe.entitlements.features import (
+    FeatureFlag,
+    FeatureUnavailableError,
+    require,
+)
+from vitalprobe.entitlements.license import EntitlementStatus, verify_license
 from vitalprobe.experience.store import ExperienceStore, Regression
 from vitalprobe.packs.loader import SuiteLoadError, load_suite
 from vitalprobe.report.html_report import write_html_report
@@ -31,6 +37,8 @@ app = typer.Typer(
     help="Safety and compliance evidence testing for healthcare & wellness AI assistants.",
     no_args_is_help=True,
 )
+license_app = typer.Typer(help="Inspect and verify offline VitalProbe licenses.")
+app.add_typer(license_app, name="license")
 console = Console()
 
 VERDICT_STYLES = {
@@ -93,6 +101,50 @@ def _print_regressions(regressions: list[Regression]) -> None:
         console.print(
             f"  {regression.case_id}: {regression.previous} → {regression.current}"
         )
+
+
+def _print_license(status: EntitlementStatus) -> None:
+    console.print(f"tier: [bold]{status.tier}[/bold]")
+    console.print(f"status: {status.message}")
+    if status.licensee:
+        console.print(f"licensee: {status.licensee}")
+    if status.expires_at:
+        console.print(f"expires: {status.expires_at.isoformat()}")
+    features = ", ".join(sorted(feature.value for feature in status.features))
+    console.print(f"paid features: {features or 'none'}")
+    if not status.valid:
+        console.print("Free engine and reporting features remain available.")
+
+
+@license_app.command("show")
+def license_show() -> None:
+    """Show the configured tier, paid features, and expiry."""
+    _print_license(verify_license())
+    raise typer.Exit(code=EXIT_OK)
+
+
+@license_app.command("verify")
+def license_verify(
+    path: Annotated[Path, typer.Argument(help="Path to a signed license JSON file.")],
+) -> None:
+    """Verify a license file offline against VitalProbe's embedded public key."""
+    status = verify_license(path)
+    _print_license(status)
+    raise typer.Exit(code=EXIT_OK if status.valid else EXIT_CONFIG_ERROR)
+
+
+@license_app.command("check")
+def license_check(
+    feature: Annotated[FeatureFlag, typer.Argument(help="Paid feature to check.")],
+) -> None:
+    """Check whether the configured license unlocks one paid feature."""
+    try:
+        require(feature)
+    except FeatureUnavailableError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    console.print(f"[green]Feature unlocked: {feature.value}[/green]")
+    raise typer.Exit(code=EXIT_OK)
 
 
 @app.command()
