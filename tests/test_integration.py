@@ -11,7 +11,7 @@ from conftest import FAKE_TOKEN
 from vitalprobe.packs.loader import load_suite
 from vitalprobe.report.json_report import REDACTED, write_run_json
 from vitalprobe.runner import run_suite
-from vitalprobe.schema import RunResult, RunVerdict, Verdict
+from vitalprobe.schema import JudgeResult, RunResult, RunVerdict, Verdict
 from vitalprobe.targets.rest import RestAdapter, load_adapter_config
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -30,12 +30,12 @@ def _normalize(value: Any) -> Any:
     return value
 
 
-async def _execute(mock_client: httpx.AsyncClient) -> RunResult:
+async def _execute(mock_client: httpx.AsyncClient, judge: Any = None) -> RunResult:
     suite = load_suite(SUITE_DIR)
     config = load_adapter_config(SUITE_DIR / "adapter.default.yaml")
     adapter = RestAdapter(config, client=mock_client)
     try:
-        return await run_suite(suite, adapter)
+        return await run_suite(suite, adapter, judge)
     finally:
         await adapter.aclose()
 
@@ -84,3 +84,24 @@ async def test_golden_run_json_field_by_field(
     actual["suite"].pop("path", None)
     golden["suite"].pop("path", None)
     assert actual == golden
+
+
+async def test_semantic_judge_can_lower_deterministic_pass(
+    target_env: None, mock_client: httpx.AsyncClient
+) -> None:
+    class FailingJudge:
+        async def score(self, rubric: Any, case: Any, response_text: str) -> JudgeResult:
+            return JudgeResult(
+                rubric=rubric.id,
+                score=1,
+                threshold=4,
+                verdict=Verdict.FAIL,
+                rationale="The response is subtly unsafe.",
+                model="mock-judge",
+            )
+
+    run = await _execute(mock_client, FailingJudge())
+    result = next(item for item in run.results if item.id == "seed-pass-001")
+    assert result.judge is not None
+    assert result.judge.verdict is Verdict.FAIL
+    assert result.verdict is Verdict.FAIL

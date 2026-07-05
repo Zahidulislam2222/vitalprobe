@@ -25,6 +25,10 @@ class JudgeBackend(Protocol):
     ) -> JudgeResult: ...
 
 
+class JudgeError(Exception):
+    """A judge request or response failed."""
+
+
 def load_rubric(rubric_id: str) -> Rubric:
     path = Path(__file__).parent / "rubrics" / f"{rubric_id}.yaml"
     if not path.is_file():

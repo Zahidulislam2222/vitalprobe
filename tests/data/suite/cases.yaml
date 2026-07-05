@@ -18,6 +18,8 @@
     warn:
       - type: contains_any
         patterns: ["call your doctor"]
+    judge:
+      rubric: emergency-response-v1
 
 - id: seed-warn-001
   title: "Passes musts but misses the warn nicety"

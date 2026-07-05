@@ -18,6 +18,10 @@ from vitalprobe.entitlements.features import (
 )
 from vitalprobe.entitlements.license import EntitlementStatus, verify_license
 from vitalprobe.experience.store import ExperienceStore, Regression
+from vitalprobe.judges.anthropic import AnthropicJudge
+from vitalprobe.judges.base import JudgeBackend
+from vitalprobe.judges.ollama import OllamaJudge
+from vitalprobe.judges.openai import OpenAIJudge
 from vitalprobe.packs.loader import SuiteLoadError, load_suite
 from vitalprobe.report.html_report import write_html_report
 from vitalprobe.report.json_report import write_run_json
@@ -116,6 +120,45 @@ def _print_license(status: EntitlementStatus) -> None:
         console.print("Free engine and reporting features remain available.")
 
 
+def _build_judge() -> JudgeBackend | None:
+    config = get_settings()
+    if config.judge == "none":
+        return None
+    model = config.local_model if config.judge == "ollama" else config.judge_model
+    if not model:
+        raise AdapterError("judge model is required in configuration")
+    if config.judge == "openai":
+        return OpenAIJudge(
+            model,
+            api_key=config.openai_api_key,
+            base_url=config.openai_base_url,
+            responses_path=config.openai_responses_path,
+            timeout_s=config.judge_timeout_s,
+            input_price=config.judge_input_price_per_million,
+            output_price=config.judge_output_price_per_million,
+        )
+    if config.judge == "anthropic":
+        return AnthropicJudge(
+            model,
+            api_key=config.anthropic_api_key,
+            base_url=config.anthropic_base_url,
+            messages_path=config.anthropic_messages_path,
+            api_version=config.anthropic_api_version,
+            timeout_s=config.judge_timeout_s,
+            max_tokens=config.anthropic_max_tokens,
+            input_price=config.judge_input_price_per_million,
+            output_price=config.judge_output_price_per_million,
+        )
+    if config.judge == "ollama":
+        return OllamaJudge(
+            model,
+            host=config.ollama_host,
+            chat_path=config.ollama_chat_path,
+            timeout_s=config.judge_timeout_s,
+        )
+    raise AdapterError(f"unknown judge provider: {config.judge}")
+
+
 @license_app.command("show")
 def license_show() -> None:
     """Show the configured tier, paid features, and expiry."""
@@ -169,6 +212,10 @@ def run(
         bool,
         typer.Option("--track", help="Remember this run and compare it with the prior target run."),
     ] = False,
+    yes_spend: Annotated[
+        bool,
+        typer.Option("--yes-spend", help="Confirm estimated cloud judge spending."),
+    ] = False,
 ) -> None:
     """Run a test suite and write its JSON result and, by default, HTML dossier."""
     try:
@@ -178,24 +225,46 @@ def run(
             console.print(f"[red]{line}[/red]")
         raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
 
+    settings = get_settings()
+    judged_cases = sum(case.expect.judge is not None for case in loaded.cases)
+    if settings.judge in {"openai", "anthropic"} and judged_cases:
+        estimate = judged_cases * settings.judge_estimated_tokens_per_case * (
+            settings.judge_input_price_per_million
+            + settings.judge_output_price_per_million
+        ) / 1_000_000
+        console.print(
+            f"{judged_cases} judged cases × ~{settings.judge_estimated_tokens_per_case} "
+            "tokens × configured prices "
+            f"= estimated ${estimate:.4f}"
+        )
+        if not yes_spend:
+            console.print("[yellow]Cloud judging requires --yes-spend.[/yellow]")
+            raise typer.Exit(code=EXIT_CONFIG_ERROR)
+
     config_path = adapter_config or (suite / "adapter.default.yaml")
     try:
         config = load_adapter_config(config_path) if config_path.is_file() else AdapterConfig()
         adapter = RestAdapter(config)
+        judge = _build_judge()
     except AdapterError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
 
     async def _run() -> RunResult:
         try:
-            return await run_suite_async(loaded, adapter)
+            return await run_suite_async(loaded, adapter, judge)
         finally:
             await adapter.aclose()
+            if judge is not None and hasattr(judge, "aclose"):
+                await judge.aclose()
 
     result = asyncio.run(_run())
 
-    settings = get_settings()
-    secrets = [settings.target_token]
+    secrets = [
+        settings.target_token,
+        settings.openai_api_key,
+        settings.anthropic_api_key,
+    ]
     path = write_run_json(result, output, secrets)
     html_path = None
     if format_ is ReportFormat.HTML:

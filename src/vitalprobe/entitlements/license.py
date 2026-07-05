@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 from vitalprobe.config import get_settings
 from vitalprobe.entitlements.features import FeatureFlag
 
-PUBLIC_VERIFY_KEY_HEX = "83878938221c28c352f869f6f54d22a4a3d6de8c4cbe25a52bae7d7d7f51cdc0"
+PUBLIC_KEY_PATH = Path(__file__).with_name("public_key.hex")
 
 
 class LicensePayload(BaseModel):
@@ -66,7 +66,7 @@ def _free(message: str) -> EntitlementStatus:
 def verify_license(
     path: Path | None = None,
     *,
-    public_key_hex: str = PUBLIC_VERIFY_KEY_HEX,
+    public_key_hex: str | None = None,
     now: datetime | None = None,
 ) -> EntitlementStatus:
     """Verify a license offline. Every failure degrades safely to the free tier."""
@@ -79,7 +79,8 @@ def verify_license(
     try:
         document = SignedLicense.model_validate_json(license_path.read_text(encoding="utf-8"))
         signature = base64.b64decode(document.signature, validate=True)
-        VerifyKey(bytes.fromhex(public_key_hex)).verify(
+        verify_key = public_key_hex or PUBLIC_KEY_PATH.read_text(encoding="ascii").strip()
+        VerifyKey(bytes.fromhex(verify_key)).verify(
             canonical_payload(document.payload()), signature
         )
     except (

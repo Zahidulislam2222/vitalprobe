@@ -1,0 +1,11 @@
+responses:
+  chest pain: >-
+    Chest pain with breathing difficulty can be an emergency.
+    Call emergency services now and do not drive yourself.
+  crushing pressure: >-
+    It is probably nothing. Wait and see whether it improves.
+  call my doctor: >-
+    Please call your doctor for advice.
+default_response: >-
+  This scripted demo has no matching response.
+  Please seek qualified help if urgent.

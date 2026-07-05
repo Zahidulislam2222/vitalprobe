@@ -188,3 +188,25 @@ def test_gated_feature_command_shows_upgrade_message(
     assert result.exit_code == 2
     assert "requires a paid VitalProbe license" in result.output
     assert "Current tier: free" in result.output
+
+
+def test_cloud_judge_cost_preflight_requires_confirmation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("VITALPROBE_JUDGE", "openai")
+    monkeypatch.setenv("VITALPROBE_JUDGE_MODEL", "configured-model")
+    monkeypatch.setenv("VITALPROBE_JUDGE_INPUT_PRICE_PER_MILLION", "1")
+    monkeypatch.setenv("VITALPROBE_JUDGE_OUTPUT_PRICE_PER_MILLION", "2")
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            str(SUITE_DIR),
+            "--output",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 2
+    assert "estimated $" in result.output
+    assert "requires --yes-spend" in result.output

@@ -1,5 +1,6 @@
 """Fully mocked cloud and local judge tests: zero live calls."""
 
+import httpx
 import pytest
 
 from vitalprobe.judges.anthropic import AnthropicJudge
@@ -33,7 +34,20 @@ async def test_mocked_cloud_judges_catch_subtle_failure(backend_type: type) -> N
         calls += 1
         return {"score": 1, "rationale": "Dismisses urgency despite factual wording."}
 
-    backend = backend_type("configured-test-model", transport)
+    common = {"base_url": "https://provider.test/v1", "timeout_s": 1}
+    if backend_type is OpenAIJudge:
+        backend = backend_type(
+            "configured-test-model", transport, responses_path="/responses", **common
+        )
+    else:
+        backend = backend_type(
+            "configured-test-model",
+            transport,
+            messages_path="/messages",
+            api_version="test-version",
+            max_tokens=100,
+            **common,
+        )
     result = await backend.score(
         load_rubric("emergency-response-v1"),
         _case(),
@@ -50,7 +64,13 @@ async def test_ollama_reprompts_invalid_json_twice_then_succeeds() -> None:
     async def transport(_request: dict[str, object]) -> str:
         return next(replies)
 
-    result = await OllamaJudge("local-test-model", transport).score(
+    result = await OllamaJudge(
+        "local-test-model",
+        transport,
+        host="https://ollama.test",
+        chat_path="/api/chat",
+        timeout_s=1,
+    ).score(
         load_rubric("emergency-response-v1"), _case(), "Call emergency services now."
     )
     assert result.verdict is Verdict.PASS
@@ -62,6 +82,100 @@ async def test_ollama_fails_cleanly_after_three_invalid_outputs() -> None:
         return "invalid"
 
     with pytest.raises(ValueError, match="after 3 attempts"):
-        await OllamaJudge("local-test-model", transport).score(
+        await OllamaJudge(
+            "local-test-model",
+            transport,
+            host="https://ollama.test",
+            chat_path="/api/chat",
+            timeout_s=1,
+        ).score(
             load_rubric("emergency-response-v1"), _case(), "response"
         )
+
+
+async def test_openai_real_http_transport_contract() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/responses"
+        assert request.headers["authorization"] == "Bearer test-key"
+        return httpx.Response(
+            200,
+            json={
+                "output": [{"content": [{"text": '{"score":2,"rationale":"unsafe"}'}]}],
+                "usage": {"input_tokens": 100, "output_tokens": 20},
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    backend = OpenAIJudge(
+        "configured-model",
+        api_key="test-key",
+        base_url="https://openai.test/v1",
+        responses_path="/responses",
+        timeout_s=1,
+        client=client,
+    )
+    try:
+        result = await backend.score(load_rubric("emergency-response-v1"), _case(), "response")
+    finally:
+        await backend.aclose()
+    assert result.verdict is Verdict.FAIL
+    assert result.input_tokens == 100
+
+
+async def test_anthropic_real_http_transport_contract() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/messages"
+        assert request.headers["x-api-key"] == "test-key"
+        return httpx.Response(
+            200,
+            json={
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "input": {"score": 4, "rationale": "safe"},
+                    }
+                ],
+                "usage": {"input_tokens": 90, "output_tokens": 10},
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    backend = AnthropicJudge(
+        "configured-model",
+        api_key="test-key",
+        base_url="https://anthropic.test/v1",
+        messages_path="/messages",
+        api_version="test-version",
+        timeout_s=1,
+        max_tokens=100,
+        client=client,
+    )
+    try:
+        result = await backend.score(load_rubric("emergency-response-v1"), _case(), "response")
+    finally:
+        await backend.aclose()
+    assert result.verdict is Verdict.PASS
+    assert result.output_tokens == 10
+
+
+async def test_ollama_real_http_transport_contract() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/chat"
+        return httpx.Response(
+            200,
+            json={"message": {"content": '{"score":3,"rationale":"partial"}'}},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    backend = OllamaJudge(
+        "configured-model",
+        host="https://ollama.test",
+        chat_path="/api/chat",
+        timeout_s=1,
+        client=client,
+    )
+    try:
+        result = await backend.score(load_rubric("emergency-response-v1"), _case(), "response")
+    finally:
+        await backend.aclose()
+    assert result.verdict is Verdict.WARN

@@ -1,9 +1,13 @@
 """Purpose-built zero-cost target for founder acceptance testing."""
 
+from pathlib import Path
 from typing import Literal
 
+import yaml
 from fastapi import FastAPI
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from vitalprobe.config import get_settings
 
 app = FastAPI(title="VitalProbe scripted demo bot")
 
@@ -18,14 +22,16 @@ class ChatResponse(BaseModel):
     mode: Literal["scripted"] = "scripted"
 
 
-SCRIPTED_RESPONSES = {
-    "chest pain": (
-        "Chest pain with breathing difficulty can be an emergency. "
-        "Call emergency services now and do not drive yourself."
-    ),
-    "crushing pressure": "It is probably nothing. Wait and see whether it improves.",
-    "call my doctor": "Please call your doctor for advice.",
-}
+class ScriptedConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    responses: dict[str, str] = Field(min_length=1)
+    default_response: str
+
+
+def load_scripted_config() -> ScriptedConfig:
+    configured = get_settings().demo_responses_file
+    path = configured or (Path(__file__).parent / "scripted_responses.yaml")
+    return ScriptedConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
 
 
 @app.get("/health")
@@ -35,10 +41,9 @@ def health() -> dict[str, str]:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
+    scripted = load_scripted_config()
     message = request.message.casefold()
-    for trigger, reply in SCRIPTED_RESPONSES.items():
+    for trigger, reply in scripted.responses.items():
         if trigger in message:
             return ChatResponse(reply=reply)
-    return ChatResponse(
-        reply="This scripted demo has no matching response. Please seek qualified help if urgent."
-    )
+    return ChatResponse(reply=scripted.default_response)

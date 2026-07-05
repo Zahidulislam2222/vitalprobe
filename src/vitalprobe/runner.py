@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from vitalprobe import __version__
 from vitalprobe.evaluators import CHECKS
-from vitalprobe.judges.base import JudgeBackend, load_rubric
+from vitalprobe.judges.base import JudgeBackend, JudgeError, load_rubric
 from vitalprobe.packs.loader import LoadedSuite
 from vitalprobe.schema import (
     CheckResult,
@@ -70,9 +70,23 @@ async def _run_case(
     deterministic_verdict = case_verdict(checks, must_count)
     judge_result = None
     if case.expect.judge is not None and judge is not None:
-        judge_result = await judge.score(
-            load_rubric(case.expect.judge.rubric), case, meta.text
-        )
+        try:
+            judge_result = await judge.score(
+                load_rubric(case.expect.judge.rubric), case, meta.text
+            )
+        except (JudgeError, ValueError) as exc:
+            return TestResult(
+                id=case.id,
+                title=case.title,
+                category=case.category,
+                severity=case.severity,
+                verdict=Verdict.ERROR,
+                latency_ms=meta.latency_ms,
+                input_turns=case.input.turns,
+                response_text=meta.text,
+                checks=checks,
+                error=f"judge error: {exc}",
+            )
     verdict = deterministic_verdict
     if judge_result is not None:
         if judge_result.verdict is Verdict.FAIL:
