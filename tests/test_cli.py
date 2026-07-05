@@ -98,3 +98,30 @@ def test_run_exit_codes(
     )
     assert result.exit_code == expected
     assert (tmp_path / "run.json").is_file()
+    assert (tmp_path / "report.html").is_file()
+
+
+def test_json_format_skips_html(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def fake_run(*_args: Any, **_kwargs: Any) -> RunResult:
+        return _run_result(RunVerdict.PASSED)
+
+    monkeypatch.setattr(cli, "RestAdapter", FakeAdapter)
+    monkeypatch.setattr(cli, "run_suite_async", fake_run)
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            str(SUITE_DIR),
+            "--output",
+            str(tmp_path),
+            "--format",
+            "json",
+        ],
+    )
+    assert result.exit_code == 0
+    assert (tmp_path / "run.json").is_file()
+    assert not (tmp_path / "report.html").exists()

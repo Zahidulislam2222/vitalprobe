@@ -1,6 +1,7 @@
 """VitalProbe command-line interface."""
 
 import asyncio
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -11,6 +12,7 @@ from rich.table import Table
 from vitalprobe import __version__
 from vitalprobe.config import get_settings
 from vitalprobe.packs.loader import SuiteLoadError, load_suite
+from vitalprobe.report.html_report import write_html_report
 from vitalprobe.report.json_report import write_run_json
 from vitalprobe.runner import run_suite as run_suite_async
 from vitalprobe.schema import (
@@ -36,6 +38,11 @@ VERDICT_STYLES = {
     Verdict.FAIL: "red",
     Verdict.ERROR: "red bold",
 }
+
+
+class ReportFormat(StrEnum):
+    HTML = "html"
+    JSON = "json"
 
 
 def _version_callback(value: bool) -> None:
@@ -87,8 +94,15 @@ def run(
     strict_warn: Annotated[
         bool, typer.Option("--strict-warn", help="Exit 1 when any WARN is present.")
     ] = False,
+    format_: Annotated[
+        ReportFormat,
+        typer.Option(
+            "--format",
+            help="Output format: html writes run.json and report.html; json writes run.json only.",
+        ),
+    ] = ReportFormat.HTML,
 ) -> None:
-    """Run a test suite against the target endpoint and write run.json."""
+    """Run a test suite and write its JSON result and, by default, HTML dossier."""
     try:
         loaded = load_suite(suite)
     except SuiteLoadError as exc:
@@ -115,8 +129,13 @@ def run(
     settings = get_settings()
     secrets = [settings.target_token]
     path = write_run_json(result, output, secrets)
+    html_path = None
+    if format_ is ReportFormat.HTML:
+        html_path = write_html_report(result, output, secrets)
     _print_summary(result)
     console.print(f"run.json written to {path}")
+    if html_path is not None:
+        console.print(f"report.html written to {html_path}")
 
     if result.verdict is RunVerdict.FAILED:
         raise typer.Exit(code=EXIT_FAILED)

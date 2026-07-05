@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VitalProbe Automated Report — {{ run.suite.name }}</title>
+  <style>
+    /* BRAND — replace this block to rebrand the automated report */
+    :root {
+      --accent: #0E7490;
+      --pass: #15803D;
+      --warn: #B45309;
+      --fail: #B91C1C;
+      --ink: #172033;
+      --muted: #5D687A;
+      --line: #D8DEE8;
+      --panel: #F6F8FA;
+      --paper: #FFFFFF;
+      --font: -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .wordmark { color: var(--accent); font-weight: 800; letter-spacing: -.04em; }
+    /* END BRAND */
+
+    * { box-sizing: border-box; }
+    body {
+      background: #EEF2F5;
+      color: var(--ink);
+      font-family: var(--font);
+      line-height: 1.55;
+      margin: 0;
+    }
+    main {
+      background: var(--paper);
+      margin: 32px auto;
+      max-width: 960px;
+      padding: 64px;
+    }
+    h1, h2, h3 { line-height: 1.15; margin-top: 0; }
+    h1 { font-size: 2.7rem; letter-spacing: -.04em; margin-bottom: 16px; }
+    h2 {
+      border-bottom: 2px solid var(--accent);
+      color: var(--accent);
+      font-size: 1.55rem;
+      margin: 52px 0 24px;
+      padding-bottom: 8px;
+    }
+    h3 { font-size: 1.15rem; margin-bottom: 8px; }
+    p { margin: 8px 0 16px; }
+    .cover { min-height: 640px; display: flex; flex-direction: column; justify-content: center; }
+    .eyebrow {
+      color: var(--accent);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .subtitle { color: var(--muted); font-size: 1.1rem; max-width: 680px; }
+    .metadata {
+      border-left: 4px solid var(--accent);
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 150px 1fr;
+      margin: 40px 0;
+      padding: 8px 0 8px 20px;
+    }
+    .metadata dt { color: var(--muted); }
+    .metadata dd { font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+    .badge, .chip {
+      border-radius: 999px;
+      display: inline-block;
+      font-size: .74rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      padding: 5px 10px;
+      text-transform: uppercase;
+    }
+    .badge-PASSED, .badge-PASS { background: #DCFCE7; color: var(--pass); }
+    .badge-PASSED_WITH_WARNINGS, .badge-WARN { background: #FEF3C7; color: var(--warn); }
+    .badge-FAILED, .badge-FAIL, .badge-ERROR { background: #FEE2E2; color: var(--fail); }
+    .counts, .severity-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 15px;
+    }
+    .metric strong { display: block; font-size: 1.45rem; }
+    .metric span { color: var(--muted); font-size: .8rem; text-transform: uppercase; }
+    .worst-list { padding-left: 20px; }
+    .worst-list li { margin-bottom: 10px; }
+    .severity-heading {
+      color: var(--ink);
+      font-size: 1.2rem;
+      margin: 32px 0 14px;
+      text-transform: capitalize;
+    }
+    .finding {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--accent);
+      border-radius: 8px;
+      margin: 0 0 20px;
+      padding: 22px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .finding-head {
+      align-items: flex-start;
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+    }
+    .finding-id, .category, .latency { color: var(--muted); font-size: .82rem; }
+    .chip { background: #E6F5F8; color: var(--accent); margin-right: 6px; }
+    .transcript {
+      background: #111827;
+      border-radius: 6px;
+      color: #E5E7EB;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: .85rem;
+      overflow-wrap: anywhere;
+      padding: 14px;
+      white-space: pre-wrap;
+    }
+    .check-list { list-style: none; padding: 0; }
+    .check-list li { border-top: 1px solid var(--line); padding: 10px 0; }
+    .check-pass { color: var(--pass); font-weight: 800; }
+    .check-fail { color: var(--fail); font-weight: 800; }
+    .callout {
+      background: #ECFEFF;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      padding: 22px;
+    }
+    footer {
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 52px;
+      padding-top: 18px;
+    }
+    @media (max-width: 700px) {
+      main { margin: 0; padding: 28px 20px; }
+      .counts, .severity-grid { grid-template-columns: repeat(2, 1fr); }
+      .metadata { grid-template-columns: 1fr; }
+      .finding-head { display: block; }
+    }
+    @media print {
+      @page { margin: 16mm; size: A4; }
+      body { background: #FFFFFF; font-size: 10pt; }
+      main { margin: 0; max-width: none; padding: 0; }
+      .cover { min-height: 245mm; page-break-after: always; }
+      h2 { break-after: avoid; page-break-after: avoid; }
+      .finding { break-inside: avoid; page-break-inside: avoid; }
+      footer { break-before: avoid; page-break-before: avoid; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <section class="cover">
+    <div class="wordmark">VitalProbe</div>
+    <p class="eyebrow">Automated Report</p>
+    <h1>Healthcare AI Safety Test Dossier</h1>
+    <p class="subtitle">Observed behavior from synthetic scenarios and deterministic checks.</p>
+    <dl class="metadata">
+      <dt>Target</dt><dd>{{ run.target.endpoint_redacted }}</dd>
+      <dt>Report date</dt><dd>{{ run.finished_at[:10] }}</dd>
+      <dt>Test suite</dt><dd>{{ run.suite.name }}{% if run.suite.pack_version %} v{{ run.suite.pack_version }}{% endif %}</dd>
+      <dt>Overall verdict</dt>
+      <dd><span class="badge badge-{{ run.verdict }}">{{ run.verdict }}</span></dd>
+    </dl>
+    <div class="counts">
+      <div class="metric"><strong>{{ run.counts.pass_ }}</strong><span>Pass</span></div>
+      <div class="metric"><strong>{{ run.counts.warn }}</strong><span>Warn</span></div>
+      <div class="metric"><strong>{{ run.counts.fail }}</strong><span>Fail</span></div>
+      <div class="metric"><strong>{{ run.counts.error }}</strong><span>Error</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Executive summary</h2>
+    <div class="severity-grid">
+      {% for severity in ["critical", "high", "medium", "low"] %}
+      <div class="metric"><strong>{{ severity_counts.get(severity, 0) }}</strong><span>{{ severity }}</span></div>
+      {% endfor %}
+    </div>
+    <h3 style="margin-top: 28px;">Highest-priority findings</h3>
+    {% if worst_findings %}
+    <ol class="worst-list">
+      {% for finding in worst_findings %}
+      <li><strong>{{ finding.id }}</strong> — {{ finding.title }}
+        <span class="badge badge-{{ finding.verdict }}">{{ finding.verdict }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p>No findings were recorded.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Findings</h2>
+    {% for group in grouped_results %}
+    <h3 class="severity-heading">{{ group.severity }} severity</h3>
+      {% for finding in group.results %}
+      <article class="finding" id="{{ finding.id }}">
+        <div class="finding-head">
+          <div>
+            <div class="finding-id">{{ finding.id }}</div>
+            <h3>{{ finding.title }}</h3>
+            <div class="category">{{ finding.category }}</div>
+          </div>
+          <div>
+            <span class="chip">{{ finding.severity }}</span>
+            <span class="badge badge-{{ finding.verdict }}">{{ finding.verdict }}</span>
+          </div>
+        </div>
+        <h4>Synthetic input</h4>
+        {% for turn in finding.input_turns %}
+        <div class="transcript"><strong>{{ turn.role }}:</strong> {{ turn.content }}</div>
+        {% endfor %}
+        <h4>Observed response</h4>
+        <div class="transcript">{{ finding.response_text or "(No response received)" }}</div>
+        {% if finding.error %}<p class="check-fail">Error: {{ finding.error }}</p>{% endif %}
+        <h4>Deterministic checks</h4>
+        {% if finding.checks %}
+        <ul class="check-list">
+          {% for check in finding.checks %}
+          <li>
+            <span class="{{ 'check-pass' if check.passed else 'check-fail' }}">{{ "✓" if check.passed else "✕" }}</span>
+            <strong>{{ check.type }}</strong> — {{ check.evidence }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p>No checks completed.</p>
+        {% endif %}
+        <div class="latency">Latency: {{ finding.latency_ms ~ " ms" if finding.latency_ms is not none else "not available" }}</div>
+      </article>
+      {% endfor %}
+    {% endfor %}
+  </section>
+
+  <section>
+    <h2>Methodology &amp; limitations</h2>
+    <p>This report uses synthetic scenarios and deterministic checks against one observed
+      version of the target. Results can change when prompts, models, retrieval data, code,
+      dependencies, or infrastructure change.</p>
+    <p>This automated report is not a regulatory approval, legal advice, a clinical assessment,
+      or a determination of HIPAA compliance. It does not replace qualified legal, security,
+      clinical, or privacy review.</p>
+  </section>
+
+  <section>
+    <h2>Tiers</h2>
+    <p>This report was produced by the <strong>Automated tier</strong>.</p>
+    <div class="callout"><strong>Clinician-Reviewed Dossier — UPCOMING</strong>: adds review of
+      flagged failures by a named licensed clinician and a signed review attestation.</div>
+  </section>
+
+  <footer>
+    VitalProbe {{ run.vitalprobe_version }} · Run {{ run.run_id }} · Generated {{ generated_at }}
+  </footer>
+</main>
+</body>
+</html>
