@@ -1,4 +1,6 @@
-"""Runtime settings. All config comes from the environment / .env — never hardcoded (Rule 12)."""
+"""Runtime settings. All config comes from the environment / .env, never source constants."""
+
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,6 +15,7 @@ class Settings(BaseSettings):
 
     target_url: str = ""
     target_token: str = ""
+    db_path: Path = Path("artifacts/vitalprobe.db")
 
 
 def get_settings() -> Settings:

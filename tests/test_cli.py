@@ -125,3 +125,38 @@ def test_json_format_skips_html(
     assert result.exit_code == 0
     assert (tmp_path / "run.json").is_file()
     assert not (tmp_path / "report.html").exists()
+
+
+def test_track_and_history_commands(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def fake_run(*_args: Any, **_kwargs: Any) -> RunResult:
+        return _run_result(RunVerdict.PASSED)
+
+    db_path = tmp_path / "vitalprobe.db"
+    monkeypatch.setenv("VITALPROBE_DB_PATH", str(db_path))
+    monkeypatch.setattr(cli, "RestAdapter", FakeAdapter)
+    monkeypatch.setattr(cli, "run_suite_async", fake_run)
+    tracked = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            str(SUITE_DIR),
+            "--output",
+            str(tmp_path / "output"),
+            "--track",
+        ],
+    )
+    assert tracked.exit_code == 0
+    assert db_path.is_file()
+    assert "No regressions" in tracked.output
+
+    result = runner.invoke(
+        cli.app,
+        ["history", "--target", FakeAdapter.endpoint_redacted],
+    )
+    assert result.exit_code == 0
+    assert "VitalProbe history" in result.output
+    assert "PASSED" in result.output
