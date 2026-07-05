@@ -40,6 +40,12 @@ Repository = "https://github.com/Zahidulislam2222/vitalprobe"
 [project.scripts]
 vitalprobe = "vitalprobe.cli:app"
 
+[project.optional-dependencies]
+demo = [
+    "fastapi>=0.139.0",
+    "uvicorn>=0.50.0",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.2",
