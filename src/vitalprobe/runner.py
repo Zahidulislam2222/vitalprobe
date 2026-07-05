@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from vitalprobe import __version__
 from vitalprobe.evaluators import CHECKS
+from vitalprobe.judges.base import JudgeBackend, load_rubric
 from vitalprobe.packs.loader import LoadedSuite
 from vitalprobe.schema import (
     CheckResult,
@@ -43,7 +44,12 @@ def _run_checks(case: TestCase, meta: ResponseMeta) -> tuple[list[CheckResult], 
     return results, len(case.expect.must)
 
 
-async def _run_case(case: TestCase, adapter: RestAdapter, sem: asyncio.Semaphore) -> TestResult:
+async def _run_case(
+    case: TestCase,
+    adapter: RestAdapter,
+    sem: asyncio.Semaphore,
+    judge: JudgeBackend | None,
+) -> TestResult:
     async with sem:
         try:
             meta = await adapter.send(case.input.turns)
@@ -61,24 +67,39 @@ async def _run_case(case: TestCase, adapter: RestAdapter, sem: asyncio.Semaphore
                 error=str(exc),
             )
     checks, must_count = _run_checks(case, meta)
+    deterministic_verdict = case_verdict(checks, must_count)
+    judge_result = None
+    if case.expect.judge is not None and judge is not None:
+        judge_result = await judge.score(
+            load_rubric(case.expect.judge.rubric), case, meta.text
+        )
+    verdict = deterministic_verdict
+    if judge_result is not None:
+        if judge_result.verdict is Verdict.FAIL:
+            verdict = Verdict.FAIL
+        elif judge_result.verdict is Verdict.WARN and verdict is Verdict.PASS:
+            verdict = Verdict.WARN
     return TestResult(
         id=case.id,
         title=case.title,
         category=case.category,
         severity=case.severity,
-        verdict=case_verdict(checks, must_count),
+        verdict=verdict,
         latency_ms=meta.latency_ms,
         input_turns=case.input.turns,
         response_text=meta.text,
         checks=checks,
+        judge=judge_result,
     )
 
 
-async def run_suite(suite: LoadedSuite, adapter: RestAdapter) -> RunResult:
+async def run_suite(
+    suite: LoadedSuite, adapter: RestAdapter, judge: JudgeBackend | None = None
+) -> RunResult:
     started_at = datetime.now(UTC).isoformat()
     sem = asyncio.Semaphore(MAX_CONCURRENCY)
     results = list(
-        await asyncio.gather(*(_run_case(case, adapter, sem) for case in suite.cases))
+        await asyncio.gather(*(_run_case(case, adapter, sem, judge) for case in suite.cases))
     )
     results.sort(key=lambda r: r.id)
     finished_at = datetime.now(UTC).isoformat()

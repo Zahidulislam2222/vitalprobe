@@ -111,6 +111,9 @@ class JudgeResult(BaseModel):
     verdict: Verdict
     rationale: str
     model: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    est_cost_usd: float = 0.0
 
 
 class TestResult(BaseModel):

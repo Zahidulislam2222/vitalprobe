@@ -64,6 +64,8 @@ packages = ["src/vitalprobe"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/vitalprobe/report/templates/dossier.html.j2" = "vitalprobe/report/templates/dossier.html.j2"
+"src/vitalprobe/judges/rubrics/emergency-response-v1.yaml" = "vitalprobe/judges/rubrics/emergency-response-v1.yaml"
+"src/vitalprobe/judges/rubrics/refusal-quality-v1.yaml" = "vitalprobe/judges/rubrics/refusal-quality-v1.yaml"
 
 [tool.ruff]
 line-length = 100

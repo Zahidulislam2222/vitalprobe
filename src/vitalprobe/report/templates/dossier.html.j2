@@ -239,6 +239,12 @@
         {% else %}
         <p>No checks completed.</p>
         {% endif %}
+        {% if finding.judge %}
+        <h4>Semantic judge</h4>
+        <p><strong>{{ finding.judge.rubric }}</strong> — score {{ finding.judge.score }}/5,
+          verdict <span class="badge badge-{{ finding.judge.verdict }}">{{ finding.judge.verdict }}</span></p>
+        <p>{{ finding.judge.rationale }} <span class="latency">Model: {{ finding.judge.model }}</span></p>
+        {% endif %}
         <div class="latency">Latency: {{ finding.latency_ms ~ " ms" if finding.latency_ms is not none else "not available" }}</div>
       </article>
       {% endfor %}
