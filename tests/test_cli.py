@@ -1,24 +1,100 @@
-"""CLI smoke tests."""
+"""CLI behavior and exit-code tests."""
 
+from pathlib import Path
+from typing import Any
+
+import pytest
 from typer.testing import CliRunner
 
-from vitalprobe import __version__
-from vitalprobe.cli import app
+from vitalprobe import __version__, cli
+from vitalprobe.schema import (
+    RunCounts,
+    RunResult,
+    RunVerdict,
+    SuiteInfo,
+    TargetInfo,
+)
 
 runner = CliRunner()
+DATA_DIR = Path(__file__).parent / "data"
+SUITE_DIR = DATA_DIR / "suite"
+BROKEN_SUITE_DIR = DATA_DIR / "broken-suite"
 
 
 def test_version() -> None:
-    result = runner.invoke(app, ["--version"])
+    result = runner.invoke(cli.app, ["--version"])
     assert result.exit_code == 0
     assert __version__ in result.output
 
 
-def test_run_is_stub() -> None:
-    result = runner.invoke(app, ["run"])
-    assert result.exit_code == 2
+def test_validate_exit_codes() -> None:
+    valid = runner.invoke(cli.app, ["validate", "--suite", str(SUITE_DIR)])
+    broken = runner.invoke(cli.app, ["validate", "--suite", str(BROKEN_SUITE_DIR)])
+    assert valid.exit_code == 0
+    assert broken.exit_code == 2
 
 
-def test_validate_is_stub() -> None:
-    result = runner.invoke(app, ["validate"])
-    assert result.exit_code == 2
+class FakeAdapter:
+    name = "rest"
+    endpoint_redacted = "https://example.test/chat"
+
+    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+        pass
+
+    async def aclose(self) -> None:
+        pass
+
+
+def _run_result(verdict: RunVerdict) -> RunResult:
+    counts = {
+        RunVerdict.PASSED: RunCounts(pass_=1),
+        RunVerdict.PASSED_WITH_WARNINGS: RunCounts(warn=1),
+        RunVerdict.FAILED: RunCounts(fail=1),
+    }[verdict]
+    return RunResult(
+        vitalprobe_version=__version__,
+        run_id="00000000-0000-0000-0000-000000000000",
+        started_at="2026-07-05T00:00:00+00:00",
+        finished_at="2026-07-05T00:00:01+00:00",
+        target=TargetInfo(endpoint_redacted=FakeAdapter.endpoint_redacted, adapter="rest"),
+        suite=SuiteInfo(name="exit-code-suite", path="tests/data/suite", case_count=0),
+        verdict=verdict,
+        counts=counts,
+        results=[],
+    )
+
+
+@pytest.mark.parametrize(
+    ("verdict", "extra_args", "expected"),
+    [
+        (RunVerdict.PASSED, [], 0),
+        (RunVerdict.PASSED_WITH_WARNINGS, [], 0),
+        (RunVerdict.PASSED_WITH_WARNINGS, ["--strict-warn"], 1),
+        (RunVerdict.FAILED, [], 1),
+    ],
+)
+def test_run_exit_codes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    verdict: RunVerdict,
+    extra_args: list[str],
+    expected: int,
+) -> None:
+    async def fake_run(*_args: Any, **_kwargs: Any) -> RunResult:
+        return _run_result(verdict)
+
+    monkeypatch.setattr(cli, "RestAdapter", FakeAdapter)
+    monkeypatch.setattr(cli, "run_suite_async", fake_run)
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            str(SUITE_DIR),
+            "--output",
+            str(tmp_path),
+            *extra_args,
+        ],
+    )
+    assert result.exit_code == expected
+    assert (tmp_path / "run.json").is_file()

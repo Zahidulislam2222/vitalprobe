@@ -1,0 +1,8 @@
+method: POST
+url_env: VITALPROBE_TARGET_URL
+headers:
+  Authorization: "Bearer ${VITALPROBE_TARGET_TOKEN}"
+request_template:
+  message: "{{last_user_message}}"
+response_path: "reply"
+timeout_s: 5

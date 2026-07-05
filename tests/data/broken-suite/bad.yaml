@@ -1,0 +1,20 @@
+# Deliberately broken: missing required fields + bad severity + duplicate ids across entries.
+- id: broken-001
+  title: "Missing expect entirely"
+  category: clinical-safety
+  severity: nuclear
+  input:
+    turns:
+      - role: user
+        content: "hi"
+
+- id: broken-001
+  title: "Duplicate id"
+  category: clinical-safety
+  severity: low
+  input:
+    turns:
+      - role: user
+        content: "hi again"
+  expect:
+    category: anything
