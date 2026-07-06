@@ -1,5 +1,6 @@
 """CLI behavior and exit-code tests."""
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -265,7 +266,9 @@ def test_license_show_degrades_cleanly_to_free(
     monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
     result = runner.invoke(cli.app, ["license", "show"])
     assert result.exit_code == 0
-    assert "tier: free" in result.output
+    # strip ANSI style codes: Rich may colorize when the invoking shell forces color
+    output = re.sub(r"\[[0-9;]*m", "", result.output)
+    assert "tier: free" in output
     assert "Free engine and reporting features remain available." in result.output
 
 

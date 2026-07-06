@@ -11,7 +11,17 @@ from rich.table import Table
 
 from vitalprobe import __version__
 from vitalprobe.baseline import BaselineError, RunComparison, compare_runs, load_run
-from vitalprobe.config import get_settings
+from vitalprobe.calibration import (
+    CalibrationError,
+    ItemScore,
+    agreement_for_judge,
+    load_items,
+    read_labels,
+    score_items,
+    write_labels_template,
+    write_reports,
+)
+from vitalprobe.config import Settings, get_settings
 from vitalprobe.entitlements.features import (
     FeatureFlag,
     FeatureUnavailableError,
@@ -185,14 +195,62 @@ def _build_judge() -> JudgeBackend | None:
             output_price=config.judge_output_price_per_million,
         )
     if config.judge == "ollama":
-        return OllamaJudge(
-            model,
-            host=config.ollama_host,
-            chat_path=config.ollama_chat_path,
-            timeout_s=config.judge_timeout_s,
-            max_attempts=config.local_judge_max_attempts,
-        )
+        return _ollama_judge(model, config)
     raise AdapterError(f"unknown judge provider: {config.judge}")
+
+
+def _ollama_judge(model: str, config: Settings) -> OllamaJudge:
+    return OllamaJudge(
+        model,
+        host=config.ollama_host,
+        chat_path=config.ollama_chat_path,
+        timeout_s=config.judge_timeout_s,
+        max_attempts=config.local_judge_max_attempts,
+        think=config.judge_ollama_think,
+    )
+
+
+def _build_calibration_judges(specs: list[str], config: Settings) -> dict[str, JudgeBackend]:
+    """Parse `--judges` specs: `ollama:<model tag>`, `anthropic`, or `openai` (configured model)."""
+    judges: dict[str, JudgeBackend] = {}
+    for spec in specs:
+        if spec.startswith("ollama:"):
+            model = spec.removeprefix("ollama:")
+            if not model:
+                raise AdapterError(f"judge spec '{spec}' is missing a local model tag")
+            judges[spec] = _ollama_judge(model, config)
+        elif spec in {"anthropic", "openai"}:
+            if not config.judge_model:
+                raise AdapterError(
+                    f"cloud judge '{spec}' needs VITALPROBE_JUDGE_MODEL in configuration"
+                )
+            if spec == "anthropic":
+                judges[f"{spec}:{config.judge_model}"] = AnthropicJudge(
+                    config.judge_model,
+                    api_key=config.anthropic_api_key,
+                    base_url=config.anthropic_base_url,
+                    messages_path=config.anthropic_messages_path,
+                    api_version=config.anthropic_api_version,
+                    timeout_s=config.judge_timeout_s,
+                    max_tokens=config.anthropic_max_tokens,
+                    input_price=config.judge_input_price_per_million,
+                    output_price=config.judge_output_price_per_million,
+                )
+            else:
+                judges[f"{spec}:{config.judge_model}"] = OpenAIJudge(
+                    config.judge_model,
+                    api_key=config.openai_api_key,
+                    base_url=config.openai_base_url,
+                    responses_path=config.openai_responses_path,
+                    timeout_s=config.judge_timeout_s,
+                    input_price=config.judge_input_price_per_million,
+                    output_price=config.judge_output_price_per_million,
+                )
+        else:
+            raise AdapterError(
+                f"unknown judge spec '{spec}' (use ollama:<model>, anthropic, or openai)"
+            )
+    return judges
 
 
 @license_app.command("show")
@@ -349,6 +407,134 @@ def compare(
         raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
     _print_comparison(comparison)
     raise typer.Exit(code=EXIT_FAILED if comparison.regressions else EXIT_OK)
+
+
+@app.command()
+def calibrate(
+    suite: Annotated[Path, typer.Option(help="Suite directory of test-case YAML files.")],
+    responses: Annotated[
+        list[Path],
+        typer.Option(
+            "--responses",
+            help="run.json artifact (file or run directory); repeat for multiple runs.",
+        ),
+    ],
+    judges: Annotated[
+        list[str],
+        typer.Option(
+            "--judges",
+            help="Judge spec, repeatable: ollama:<model tag>, anthropic, or openai.",
+        ),
+    ],
+    output: Annotated[Path, typer.Option(help="Output directory for calibration artifacts.")],
+    labels: Annotated[
+        Path | None,
+        typer.Option(help="Filled labels CSV (human_verdict per item) to compute agreement."),
+    ] = None,
+    rubric: Annotated[
+        str,
+        typer.Option(help="Rubric id used for cases without their own judge rubric."),
+    ] = "",
+    yes_spend: Annotated[
+        bool,
+        typer.Option("--yes-spend", help="Confirm estimated cloud judge spending."),
+    ] = False,
+) -> None:
+    """Score the same case/response items with every judge and, once founder labels exist,
+    compute per-judge agreement, Cohen's kappa, and confusion matrices."""
+    settings = get_settings()
+    try:
+        loaded = load_suite(suite)
+    except SuiteLoadError as exc:
+        for line in exc.errors:
+            console.print(f"[red]{line}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    try:
+        items = load_items(loaded, responses)
+        judge_backends = _build_calibration_judges(judges, settings)
+    except (AdapterError, CalibrationError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    cloud_judges = [name for name in judge_backends if not name.startswith("ollama:")]
+    if cloud_judges:
+        estimate = len(cloud_judges) * len(items) * settings.judge_estimated_tokens_per_case * (
+            settings.judge_input_price_per_million + settings.judge_output_price_per_million
+        ) / 1_000_000
+        console.print(
+            f"{len(cloud_judges)} cloud judge(s) × {len(items)} items × "
+            f"~{settings.judge_estimated_tokens_per_case} tokens × configured prices "
+            f"= estimated ${estimate:.4f}"
+        )
+        if not yes_spend:
+            console.print("[yellow]Cloud judging requires --yes-spend.[/yellow]")
+            raise typer.Exit(code=EXIT_CONFIG_ERROR)
+
+    async def _score() -> dict[str, list[ItemScore]]:
+        try:
+            return await score_items(judge_backends, items, rubric)
+        finally:
+            for backend in judge_backends.values():
+                if hasattr(backend, "aclose"):
+                    await backend.aclose()
+
+    try:
+        scores = asyncio.run(_score())
+    except CalibrationError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    output.mkdir(parents=True, exist_ok=True)
+    template_path = output / "labels_template.csv"
+    write_labels_template(items, template_path)
+
+    human_labels = {}
+    if labels is not None:
+        try:
+            human_labels = read_labels(labels)
+        except (OSError, CalibrationError) as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    agreements = (
+        [
+            agreement_for_judge(name, judge_scores, human_labels, items)
+            for name, judge_scores in scores.items()
+        ]
+        if human_labels
+        else []
+    )
+    write_reports(output, items, scores, agreements, len(human_labels))
+
+    console.print(f"{len(items)} items scored by {len(judge_backends)} judge(s)")
+    errored = {
+        name: sum(score.error is not None for score in judge_scores)
+        for name, judge_scores in scores.items()
+    }
+    for name, error_count in errored.items():
+        status = f"[red]{error_count} judge errors[/red]" if error_count else "[green]ok[/green]"
+        console.print(f"  {name}: {status}")
+    console.print(f"labels template written to {template_path}")
+    if agreements:
+        table = Table(title="Agreement vs human labels")
+        table.add_column("judge")
+        table.add_column("items", justify="right")
+        table.add_column("agreement", justify="right")
+        table.add_column("kappa", justify="right")
+        for agreement in agreements:
+            table.add_row(
+                agreement.judge,
+                str(agreement.labeled_items),
+                f"{agreement.percent_agreement}%",
+                "n/a" if agreement.cohen_kappa is None else str(agreement.cohen_kappa),
+            )
+        console.print(table)
+    else:
+        console.print(
+            "[yellow]No human labels yet — fill the template and re-run with --labels "
+            "to compute agreement.[/yellow]"
+        )
+    console.print(f"calibration report written to {output / 'calibration_report.md'}")
+    raise typer.Exit(code=EXIT_OK)
 
 
 @app.command()

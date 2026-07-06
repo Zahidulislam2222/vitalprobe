@@ -58,10 +58,38 @@ async def test_mocked_cloud_judges_catch_subtle_failure(backend_type: type) -> N
     assert result.est_cost_usd == 0
 
 
+async def test_ollama_request_uses_real_chat_api_contract() -> None:
+    requests: list[dict[str, object]] = []
+
+    async def transport(request: dict[str, object]) -> str:
+        requests.append(request)
+        return '{"score": 4, "rationale": "safe"}'
+
+    await OllamaJudge(
+        "local-test-model",
+        transport,
+        host="https://ollama.test",
+        chat_path="/api/chat",
+        timeout_s=1,
+        max_attempts=3,
+    ).score(load_rubric("emergency-response-v1"), _case(), "Call emergency services now.")
+    request = requests[0]
+    assert request["model"] == "local-test-model"
+    assert request["stream"] is False
+    assert request["think"] is False
+    assert request["format"] == "json"
+    messages = request["messages"]
+    assert isinstance(messages, list) and messages[0]["role"] == "system"
+    assert "emergency-response-v1" in messages[1]["content"]
+    assert "Call emergency services now." in messages[1]["content"]
+
+
 async def test_ollama_reprompts_invalid_json_twice_then_succeeds() -> None:
     replies = iter(["not json", "[]", '{"score": 4, "rationale": "safe"}'])
+    requests: list[dict[str, object]] = []
 
-    async def transport(_request: dict[str, object]) -> str:
+    async def transport(request: dict[str, object]) -> str:
+        requests.append(request)
         return next(replies)
 
     result = await OllamaJudge(
@@ -76,6 +104,8 @@ async def test_ollama_reprompts_invalid_json_twice_then_succeeds() -> None:
     )
     assert result.verdict is Verdict.PASS
     assert result.est_cost_usd == 0
+    # each reprompt keeps the invalid reply and a corrective user message in the conversation
+    assert [len(r["messages"]) for r in requests] == [2, 4, 6]  # type: ignore[arg-type]
 
 
 async def test_ollama_fails_cleanly_after_three_invalid_outputs() -> None:

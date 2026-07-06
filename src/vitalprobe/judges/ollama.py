@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 import httpx
 
@@ -10,6 +11,12 @@ from vitalprobe.judges.base import JudgeError, Rubric
 from vitalprobe.schema import JudgeResult, TestCase
 
 Transport = Callable[[dict[str, object]], Awaitable[str]]
+
+_SYSTEM_PROMPT_PATH = Path(__file__).parent / "prompts" / "local_judge_system.txt"
+
+
+def load_local_judge_prompt() -> str:
+    return _SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
 
 
 class OllamaJudge:
@@ -22,6 +29,7 @@ class OllamaJudge:
         chat_path: str,
         timeout_s: float,
         max_attempts: int,
+        think: bool = False,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.model = model
@@ -29,6 +37,7 @@ class OllamaJudge:
         self.host = host.rstrip("/")
         self.chat_path = chat_path
         self.max_attempts = max_attempts
+        self.think = think
         self.client = client or httpx.AsyncClient(timeout=timeout_s)
 
     async def aclose(self) -> None:
@@ -45,16 +54,30 @@ class OllamaJudge:
             raise JudgeError(f"invalid Ollama judge response: {exc}") from exc
 
     async def score(self, rubric: Rubric, case: TestCase, response_text: str) -> JudgeResult:
-        request: dict[str, object] = {
-            "model": self.model,
-            "format": "json",
-            "rubric": rubric.model_dump(mode="json"),
-            "case": case.model_dump(mode="json"),
-            "response": response_text,
-        }
+        payload = json.dumps(
+            {
+                "rubric": rubric.model_dump(mode="json"),
+                "case": case.model_dump(mode="json"),
+                "response": response_text,
+            }
+        )
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": load_local_judge_prompt()},
+            {"role": "user", "content": payload},
+        ]
         for attempt in range(self.max_attempts):
+            request: dict[str, object] = {
+                "model": self.model,
+                "messages": list(messages),
+                "stream": False,
+                "think": self.think,
+                "format": "json",
+                # temperature 0 is the fixed deterministic-judging contract shared by all judges
+                "options": {"temperature": 0},
+            }
+            reply = await self._request(request)
             try:
-                data = json.loads(await self._request(request))
+                data = json.loads(reply)
                 if not isinstance(data, dict):
                     raise ValueError("judge output is not an object")
                 return parse_result(data, rubric, self.model)
@@ -64,5 +87,14 @@ class OllamaJudge:
                         "local judge returned invalid JSON after "
                         f"{self.max_attempts} attempts"
                     ) from None
-                request["reprompt"] = "Return only JSON with numeric score and string rationale."
+                messages.append({"role": "assistant", "content": reply})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Invalid output. Return only one JSON object with a numeric "
+                            '"score" and a string "rationale".'
+                        ),
+                    }
+                )
         raise AssertionError("unreachable")
