@@ -19,7 +19,7 @@ For a real `$0` local-model audit, start Ollama and configure:
 
 ```bash
 DEMOBOT_PROVIDER=ollama
-DEMOBOT_MODEL=gemma3:1b
+DEMOBOT_MODEL=your-local-model-tag
 OLLAMA_HOST=http://localhost:11434
 ```
 
