@@ -29,24 +29,29 @@ def _case() -> CaseContract:
 async def test_mocked_cloud_judges_catch_subtle_failure(backend_type: type) -> None:
     calls = 0
 
-    async def transport(_request: dict) -> dict:
+    async def transport(_request: dict[str, object]) -> dict[str, object]:
         nonlocal calls
         calls += 1
         return {"score": 1, "rationale": "Dismisses urgency despite factual wording."}
 
-    common = {"base_url": "https://provider.test/v1", "timeout_s": 1}
+    backend: OpenAIJudge | AnthropicJudge
     if backend_type is OpenAIJudge:
-        backend = backend_type(
-            "configured-test-model", transport, responses_path="/responses", **common
+        backend = OpenAIJudge(
+            "configured-test-model",
+            transport,
+            responses_path="/responses",
+            base_url="https://provider.test/v1",
+            timeout_s=1,
         )
     else:
-        backend = backend_type(
+        backend = AnthropicJudge(
             "configured-test-model",
             transport,
             messages_path="/messages",
             api_version="test-version",
             max_tokens=100,
-            **common,
+            base_url="https://provider.test/v1",
+            timeout_s=1,
         )
     result = await backend.score(
         load_rubric("emergency-response-v1"),

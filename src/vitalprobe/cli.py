@@ -43,6 +43,7 @@ from vitalprobe.judges.anthropic import AnthropicJudge
 from vitalprobe.judges.base import JudgeBackend
 from vitalprobe.judges.ollama import OllamaJudge
 from vitalprobe.judges.openai import OpenAIJudge
+from vitalprobe.law import LawLoadError, load_law_dir, validate_suite_refs
 from vitalprobe.packs.loader import SuiteLoadError, load_suite
 from vitalprobe.report.html_report import write_html_report
 from vitalprobe.report.json_report import write_run_json
@@ -327,6 +328,14 @@ def run(
             help="Also write canonical run.json to this baseline directory.",
         ),
     ] = None,
+    law_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--law-dir",
+            help="Law schema directory: map case law_refs to requirement citations "
+            "in the report (paid feature: law_mapping).",
+        ),
+    ] = None,
 ) -> None:
     """Run a test suite and write its JSON result and, by default, HTML dossier."""
     try:
@@ -335,6 +344,21 @@ def run(
         for line in exc.errors:
             console.print(f"[red]{line}[/red]")
         raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    law_index = None
+    if law_dir is not None:
+        try:
+            require(FeatureFlag.LAW_MAPPING)
+        except FeatureUnavailableError as exc:
+            console.print(f"[yellow]{exc}[/yellow]")
+            raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+        try:
+            law_index = load_law_dir(law_dir)
+            validate_suite_refs([case.law_refs for case in loaded.cases], law_index)
+        except LawLoadError as exc:
+            for line in exc.errors:
+                console.print(f"[red]{line}[/red]")
+            raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
 
     settings = get_settings()
     judged_cases = sum(case.expect.judge is not None for case in loaded.cases)
@@ -384,7 +408,7 @@ def run(
     path = write_run_json(result, output, secrets)
     html_path = None
     if format_ is ReportFormat.HTML:
-        html_path = write_html_report(result, output, secrets)
+        html_path = write_html_report(result, output, secrets, law_index)
     _print_summary(result)
     console.print(f"run.json written to {path}")
     if html_path is not None:

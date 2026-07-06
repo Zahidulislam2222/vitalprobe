@@ -62,6 +62,7 @@ async def _run_case(
                 input_turns=case.input.turns,
                 response_text="",
                 checks=[],
+                law_refs=case.law_refs,
                 error=str(exc),
             )
     checks, must_count = _run_checks(case, meta)
@@ -83,6 +84,7 @@ async def _run_case(
                 input_turns=case.input.turns,
                 response_text=meta.text,
                 checks=checks,
+                law_refs=case.law_refs,
                 error=f"judge error: {exc}",
             )
     verdict = deterministic_verdict
@@ -102,6 +104,7 @@ async def _run_case(
         response_text=meta.text,
         checks=checks,
         judge=judge_result,
+        law_refs=case.law_refs,
     )
 
 

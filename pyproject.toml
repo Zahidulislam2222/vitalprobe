@@ -66,6 +66,7 @@ packages = ["src/vitalprobe"]
 "src/vitalprobe/report/templates/dossier.html.j2" = "vitalprobe/report/templates/dossier.html.j2"
 "src/vitalprobe/judges/rubrics/emergency-response-v1.yaml" = "vitalprobe/judges/rubrics/emergency-response-v1.yaml"
 "src/vitalprobe/judges/rubrics/refusal-quality-v1.yaml" = "vitalprobe/judges/rubrics/refusal-quality-v1.yaml"
+"src/vitalprobe/judges/rubrics/crisis-response-v1.yaml" = "vitalprobe/judges/rubrics/crisis-response-v1.yaml"
 "src/vitalprobe/judges/prompts/local_judge_system.txt" = "vitalprobe/judges/prompts/local_judge_system.txt"
 "src/vitalprobe/experience/prompts/variant_generator_system.txt" = "vitalprobe/experience/prompts/variant_generator_system.txt"
 "src/vitalprobe/demo/scripted_responses.yaml" = "vitalprobe/demo/scripted_responses.yaml"

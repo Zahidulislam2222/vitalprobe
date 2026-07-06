@@ -312,3 +312,17 @@ def test_cloud_judge_cost_preflight_requires_confirmation(
     assert result.exit_code == 2
     assert "estimated $" in result.output
     assert "requires --yes-spend" in result.output
+
+
+def test_run_law_dir_requires_license(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """--law-dir is behind the LAW_MAPPING paid flag; free tier exits 2 before any run."""
+    monkeypatch.chdir(tmp_path)  # ignore the project .env (dev license)
+    result = runner.invoke(
+        cli.app,
+        ["run", "--suite", str(SUITE_DIR), "--output", str(tmp_path), "--law-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 2
+    assert "law mapping" in result.output
+    assert not (tmp_path / "run.json").exists()

@@ -239,6 +239,19 @@
         {% else %}
         <p>No checks completed.</p>
         {% endif %}
+        {% if law_blocks.get(finding.id) %}
+        <h4>Relevant requirements</h4>
+        <ul class="check-list law-list">
+          {% for req in law_blocks[finding.id] %}
+          <li>
+            <strong>{{ req.law_name }}</strong> ({{ req.jurisdiction }}, {{ req.status }})
+            — {{ req.summary }}
+            <div class="latency">Citation: {{ req.citation }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="latency">{{ law_disclaimer }}</p>
+        {% endif %}
         {% if finding.judge %}
         <h4>Semantic judge</h4>
         <p><strong>{{ finding.judge.rubric }}</strong> — score {{ finding.judge.score }}/5,
@@ -259,6 +272,9 @@
     <p>This automated report is not a regulatory approval, legal advice, a clinical assessment,
       or a determination of HIPAA compliance. It does not replace qualified legal, security,
       clinical, or privacy review.</p>
+    {% if law_enabled %}
+    <p><strong>Regulatory mapping:</strong> {{ law_disclaimer }}</p>
+    {% endif %}
   </section>
 
   <section>

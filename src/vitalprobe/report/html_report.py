@@ -6,6 +6,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from vitalprobe.law import LAW_DISCLAIMER, LawIndex, ResolvedRequirement, resolve_refs
 from vitalprobe.report.json_report import REDACTED
 from vitalprobe.schema import SEVERITY_ORDER, RunResult, Verdict
 
@@ -18,7 +19,16 @@ _VERDICT_ORDER = {
 }
 
 
-def _template_context(run: RunResult) -> dict[str, Any]:
+def _law_blocks(run: RunResult, law_index: LawIndex) -> dict[str, list[ResolvedRequirement]]:
+    """Requirement citations per FAILED/ERRORED finding id (M7 step 4: per-failure block)."""
+    return {
+        result.id: resolve_refs(result.law_refs, law_index)
+        for result in run.results
+        if result.law_refs and result.verdict in (Verdict.FAIL, Verdict.ERROR)
+    }
+
+
+def _template_context(run: RunResult, law_index: LawIndex | None) -> dict[str, Any]:
     results = sorted(
         run.results,
         key=lambda result: (
@@ -50,10 +60,17 @@ def _template_context(run: RunResult) -> dict[str, Any]:
         "severity_counts": severity_counts,
         "worst_findings": worst,
         "generated_at": run.finished_at,
+        "law_blocks": _law_blocks(run, law_index) if law_index is not None else {},
+        "law_enabled": law_index is not None,
+        "law_disclaimer": LAW_DISCLAIMER,
     }
 
 
-def render_html(run: RunResult, secrets: list[str] | None = None) -> str:
+def render_html(
+    run: RunResult,
+    secrets: list[str] | None = None,
+    law_index: LawIndex | None = None,
+) -> str:
     """Render a complete dossier and redact known secrets from the final document."""
     environment = Environment(
         loader=FileSystemLoader(_TEMPLATE_DIR),
@@ -61,7 +78,9 @@ def render_html(run: RunResult, secrets: list[str] | None = None) -> str:
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    html = environment.get_template("dossier.html.j2").render(**_template_context(run))
+    html = environment.get_template("dossier.html.j2").render(
+        **_template_context(run, law_index)
+    )
     for secret in secrets or []:
         if secret:
             html = html.replace(secret, REDACTED)
@@ -69,10 +88,13 @@ def render_html(run: RunResult, secrets: list[str] | None = None) -> str:
 
 
 def write_html_report(
-    run: RunResult, output_dir: Path, secrets: list[str] | None = None
+    run: RunResult,
+    output_dir: Path,
+    secrets: list[str] | None = None,
+    law_index: LawIndex | None = None,
 ) -> Path:
     """Write `<output_dir>/report.html` and return its path."""
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / "report.html"
-    path.write_text(render_html(run, secrets), encoding="utf-8")
+    path.write_text(render_html(run, secrets, law_index), encoding="utf-8")
     return path

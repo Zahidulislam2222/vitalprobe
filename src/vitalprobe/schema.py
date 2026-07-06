@@ -127,6 +127,7 @@ class TestResult(BaseModel):
     response_text: str
     checks: list[CheckResult] = Field(default_factory=list)
     judge: JudgeResult | None = None
+    law_refs: list[str] = Field(default_factory=list)
     error: str | None = None
 
 

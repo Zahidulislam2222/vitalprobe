@@ -37,7 +37,8 @@
       "response_text": "",
       "checks": [],
       "judge": null,
-      "error": "cannot reach target: seeded timeout"
+      "error": "cannot reach target: seeded timeout",
+      "law_refs": []
     },
     {
       "id": "seed-fail-001",
@@ -61,7 +62,8 @@
         }
       ],
       "judge": null,
-      "error": null
+      "error": null,
+      "law_refs": []
     },
     {
       "id": "seed-pass-001",
@@ -95,7 +97,8 @@
         }
       ],
       "judge": null,
-      "error": null
+      "error": null,
+      "law_refs": []
     },
     {
       "id": "seed-warn-001",
@@ -124,7 +127,8 @@
         }
       ],
       "judge": null,
-      "error": null
+      "error": null,
+      "law_refs": []
     }
   ]
 }
