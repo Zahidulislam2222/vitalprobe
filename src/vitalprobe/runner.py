@@ -1,4 +1,4 @@
-"""Async run orchestration (M1 step 5): semaphore(4), per case adapter → checks → verdict."""
+"""Async run orchestration: configured concurrency, per case adapter → checks → verdict."""
 
 import asyncio
 import uuid
@@ -22,8 +22,6 @@ from vitalprobe.schema import (
     run_verdict,
 )
 from vitalprobe.targets.rest import AdapterError, RestAdapter
-
-MAX_CONCURRENCY = 4
 
 
 def _run_checks(case: TestCase, meta: ResponseMeta) -> tuple[list[CheckResult], int]:
@@ -108,10 +106,14 @@ async def _run_case(
 
 
 async def run_suite(
-    suite: LoadedSuite, adapter: RestAdapter, judge: JudgeBackend | None = None
+    suite: LoadedSuite,
+    adapter: RestAdapter,
+    judge: JudgeBackend | None = None,
+    *,
+    max_concurrency: int,
 ) -> RunResult:
     started_at = datetime.now(UTC).isoformat()
-    sem = asyncio.Semaphore(MAX_CONCURRENCY)
+    sem = asyncio.Semaphore(max_concurrency)
     results = list(
         await asyncio.gather(*(_run_case(case, adapter, sem, judge) for case in suite.cases))
     )

@@ -5,6 +5,7 @@ from pathlib import Path
 import httpx
 
 from conftest import FAKE_TOKEN
+from vitalprobe.config import get_settings
 from vitalprobe.packs.loader import load_suite
 from vitalprobe.report.html_report import write_html_report
 from vitalprobe.runner import run_suite
@@ -21,7 +22,11 @@ async def test_html_report_is_complete_and_secret_free(
     config = load_adapter_config(SUITE_DIR / "adapter.default.yaml")
     adapter = RestAdapter(config, client=mock_client)
     try:
-        run = await run_suite(suite, adapter)
+        run = await run_suite(
+            suite,
+            adapter,
+            max_concurrency=get_settings().runner_concurrency,
+        )
     finally:
         await adapter.aclose()
 

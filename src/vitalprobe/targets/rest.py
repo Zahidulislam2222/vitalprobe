@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -60,6 +60,9 @@ class AdapterConfig(BaseModel):
     request_template: dict[str, Any] = {"message": "{{last_user_message}}"}
     response_path: str = "reply"
     timeout_s: float = 30.0
+    retry_attempts: int = Field(default=3, ge=1)
+    retry_wait_multiplier_s: float = Field(default=0.2, ge=0)
+    retry_wait_max_s: float = Field(default=2, ge=0)
 
 
 def load_adapter_config(path: Path) -> AdapterConfig:
@@ -162,8 +165,11 @@ class RestAdapter:
 
         @retry(
             reraise=True,
-            stop=stop_after_attempt(3),
-            wait=wait_exponential(multiplier=0.2, max=2),
+            stop=stop_after_attempt(self.config.retry_attempts),
+            wait=wait_exponential(
+                multiplier=self.config.retry_wait_multiplier_s,
+                max=self.config.retry_wait_max_s,
+            ),
             retry=retry_if_exception_type((httpx.TransportError, _RetryableStatus)),
         )
         async def _do_request() -> httpx.Response:

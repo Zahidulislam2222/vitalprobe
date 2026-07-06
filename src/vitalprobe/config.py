@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     judge_estimated_tokens_per_case: int = 1500
     anthropic_max_tokens: int = 500
     local_model: str = ""
+    local_judge_max_attempts: int = Field(3, ge=1)
     judge_input_price_per_million: float = 0
     judge_output_price_per_million: float = 0
     demo_responses_file: Path | None = None
@@ -58,6 +59,7 @@ class Settings(BaseSettings):
     demo_max_tokens: int = 180
     demo_timeout_s: float = 120
     demo_ollama_think: bool = False
+    runner_concurrency: int = Field(4, ge=1)
 
 
 def get_settings() -> Settings:

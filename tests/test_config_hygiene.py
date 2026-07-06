@@ -17,9 +17,9 @@ PROVIDER_MODULES = [
 ]
 
 
-def _tracked_text_files() -> list[Path]:
+def _project_text_files() -> list[Path]:
     result = subprocess.run(
-        ["git", "ls-files", "-z"],
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -59,7 +59,7 @@ def test_tracked_text_files_contain_no_obvious_private_keys() -> None:
         re.compile(r"BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY"),
     ]
     hits: list[str] = []
-    for path in _tracked_text_files():
+    for path in _project_text_files():
         if path.suffix == ".hex":
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
@@ -71,7 +71,7 @@ def test_tracked_text_files_contain_no_obvious_private_keys() -> None:
 def test_tracked_files_do_not_pin_concrete_local_model_tags() -> None:
     model_tag = re.compile(r"\b(?:qwen|gemma)[a-z0-9.-]*:\d+(?:\.\d+)?b\b", re.IGNORECASE)
     hits: list[str] = []
-    for path in _tracked_text_files():
+    for path in _project_text_files():
         text = path.read_text(encoding="utf-8", errors="ignore")
         if model_tag.search(text):
             hits.append(str(path.relative_to(ROOT)))

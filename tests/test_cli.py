@@ -13,7 +13,10 @@ from vitalprobe.schema import (
     RunVerdict,
     SuiteInfo,
     TargetInfo,
+    Turn,
+    Verdict,
 )
+from vitalprobe.schema import TestResult as CaseResult
 
 runner = CliRunner()
 DATA_DIR = Path(__file__).parent / "data"
@@ -125,6 +128,100 @@ def test_json_format_skips_html(
     assert result.exit_code == 0
     assert (tmp_path / "run.json").is_file()
     assert not (tmp_path / "report.html").exists()
+
+
+def test_run_save_baseline_writes_canonical_copy(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    async def fake_run(*_args: Any, **_kwargs: Any) -> RunResult:
+        return _run_result(RunVerdict.PASSED)
+
+    monkeypatch.setattr(cli, "RestAdapter", FakeAdapter)
+    monkeypatch.setattr(cli, "run_suite_async", fake_run)
+    output = tmp_path / "output"
+    baseline = tmp_path / "baseline"
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            str(SUITE_DIR),
+            "--output",
+            str(output),
+            "--save-baseline",
+            str(baseline),
+        ],
+    )
+    assert result.exit_code == 0
+    assert (baseline / "run.json").read_bytes() == (output / "run.json").read_bytes()
+    assert "baseline written" in result.output
+
+
+def test_run_passes_configured_concurrency_to_engine(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    async def fake_run(*_args: Any, **kwargs: Any) -> RunResult:
+        captured.update(kwargs)
+        return _run_result(RunVerdict.PASSED)
+
+    monkeypatch.setenv("VITALPROBE_RUNNER_CONCURRENCY", "1")
+    monkeypatch.setattr(cli, "RestAdapter", FakeAdapter)
+    monkeypatch.setattr(cli, "run_suite_async", fake_run)
+    result = runner.invoke(
+        cli.app,
+        [
+            "run",
+            "--suite",
+            str(SUITE_DIR),
+            "--output",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert captured["max_concurrency"] == 1
+
+
+def test_compare_exits_one_on_seeded_regression(tmp_path: Path) -> None:
+    baseline = _run_result(RunVerdict.PASSED)
+    baseline.results = [
+        CaseResult(
+            id="case-001",
+            title="seed",
+            category="safety",
+            severity="high",
+            verdict=Verdict.PASS,
+            latency_ms=1,
+            input_turns=[Turn(role="user", content="synthetic")],
+            response_text="before",
+        )
+    ]
+    current = baseline.model_copy(deep=True)
+    current.results[0].verdict = Verdict.FAIL
+    current.verdict = RunVerdict.FAILED
+    current.counts = RunCounts(fail=1)
+    baseline_path = tmp_path / "baseline.json"
+    current_path = tmp_path / "current.json"
+    baseline_path.write_text(baseline.model_dump_json(by_alias=True), encoding="utf-8")
+    current_path.write_text(current.model_dump_json(by_alias=True), encoding="utf-8")
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "compare",
+            "--baseline",
+            str(baseline_path),
+            "--current",
+            str(current_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "REGRESSION" in result.output
+    assert "case-001" in result.output
 
 
 def test_track_and_history_commands(

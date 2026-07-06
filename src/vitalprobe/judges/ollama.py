@@ -21,12 +21,14 @@ class OllamaJudge:
         host: str,
         chat_path: str,
         timeout_s: float,
+        max_attempts: int,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.model = model
         self.transport = transport
         self.host = host.rstrip("/")
         self.chat_path = chat_path
+        self.max_attempts = max_attempts
         self.client = client or httpx.AsyncClient(timeout=timeout_s)
 
     async def aclose(self) -> None:
@@ -50,14 +52,17 @@ class OllamaJudge:
             "case": case.model_dump(mode="json"),
             "response": response_text,
         }
-        for attempt in range(3):
+        for attempt in range(self.max_attempts):
             try:
                 data = json.loads(await self._request(request))
                 if not isinstance(data, dict):
                     raise ValueError("judge output is not an object")
                 return parse_result(data, rubric, self.model)
             except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-                if attempt == 2:
-                    raise ValueError("local judge returned invalid JSON after 3 attempts") from None
+                if attempt == self.max_attempts - 1:
+                    raise ValueError(
+                        "local judge returned invalid JSON after "
+                        f"{self.max_attempts} attempts"
+                    ) from None
                 request["reprompt"] = "Return only JSON with numeric score and string rationale."
         raise AssertionError("unreachable")

@@ -8,11 +8,12 @@ import httpx
 import pytest
 
 from conftest import FAKE_TOKEN
+from vitalprobe.config import get_settings
 from vitalprobe.packs.loader import load_suite
 from vitalprobe.report.json_report import REDACTED, write_run_json
 from vitalprobe.runner import run_suite
-from vitalprobe.schema import JudgeResult, RunResult, RunVerdict, Verdict
-from vitalprobe.targets.rest import RestAdapter, load_adapter_config
+from vitalprobe.schema import JudgeResult, RunResult, RunVerdict, Turn, Verdict
+from vitalprobe.targets.rest import AdapterConfig, AdapterError, RestAdapter, load_adapter_config
 
 DATA_DIR = Path(__file__).parent / "data"
 SUITE_DIR = DATA_DIR / "suite"
@@ -35,7 +36,12 @@ async def _execute(mock_client: httpx.AsyncClient, judge: Any = None) -> RunResu
     config = load_adapter_config(SUITE_DIR / "adapter.default.yaml")
     adapter = RestAdapter(config, client=mock_client)
     try:
-        return await run_suite(suite, adapter, judge)
+        return await run_suite(
+            suite,
+            adapter,
+            judge,
+            max_concurrency=get_settings().runner_concurrency,
+        )
     finally:
         await adapter.aclose()
 
@@ -105,3 +111,27 @@ async def test_semantic_judge_can_lower_deterministic_pass(
     assert result.judge is not None
     assert result.judge.verdict is Verdict.FAIL
     assert result.verdict is Verdict.FAIL
+
+
+async def test_rest_retry_attempts_are_adapter_configurable() -> None:
+    attempts = 0
+
+    async def always_timeout(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ConnectTimeout("seeded timeout", request=request)
+
+    config = AdapterConfig(
+        url="https://example.test/chat",
+        retry_attempts=1,
+        retry_wait_multiplier_s=0,
+        retry_wait_max_s=0,
+    )
+    client = httpx.AsyncClient(transport=httpx.MockTransport(always_timeout))
+    adapter = RestAdapter(config, client=client)
+    try:
+        with pytest.raises(AdapterError, match="cannot reach target"):
+            await adapter.send([Turn(role="user", content="synthetic")])
+    finally:
+        await adapter.aclose()
+    assert attempts == 1

@@ -70,6 +70,7 @@ async def test_ollama_reprompts_invalid_json_twice_then_succeeds() -> None:
         host="https://ollama.test",
         chat_path="/api/chat",
         timeout_s=1,
+        max_attempts=3,
     ).score(
         load_rubric("emergency-response-v1"), _case(), "Call emergency services now."
     )
@@ -88,6 +89,7 @@ async def test_ollama_fails_cleanly_after_three_invalid_outputs() -> None:
             host="https://ollama.test",
             chat_path="/api/chat",
             timeout_s=1,
+            max_attempts=3,
         ).score(
             load_rubric("emergency-response-v1"), _case(), "response"
         )
@@ -172,6 +174,7 @@ async def test_ollama_real_http_transport_contract() -> None:
         host="https://ollama.test",
         chat_path="/api/chat",
         timeout_s=1,
+        max_attempts=3,
         client=client,
     )
     try:

@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from vitalprobe import __version__
+from vitalprobe.baseline import BaselineError, RunComparison, compare_runs, load_run
 from vitalprobe.config import get_settings
 from vitalprobe.entitlements.features import (
     FeatureFlag,
@@ -107,6 +108,40 @@ def _print_regressions(regressions: list[Regression]) -> None:
         )
 
 
+def _print_comparison(comparison: RunComparison) -> None:
+    table = Table(title="VitalProbe baseline comparison")
+    table.add_column("change")
+    table.add_column("case id")
+    table.add_column("previous")
+    table.add_column("current")
+    for regression in comparison.regressions:
+        table.add_row(
+            "REGRESSION",
+            regression.case_id,
+            regression.previous,
+            regression.current,
+            style="red",
+        )
+    for improvement in comparison.improvements:
+        table.add_row(
+            "IMPROVEMENT",
+            improvement.case_id,
+            improvement.previous,
+            improvement.current,
+            style="green",
+        )
+    for new_case in comparison.new_cases:
+        table.add_row("NEW", new_case.case_id, "-", new_case.verdict)
+    for removed_case in comparison.removed_cases:
+        table.add_row("REMOVED", removed_case.case_id, removed_case.verdict, "-")
+    console.print(table)
+    console.print(
+        f"regressions {len(comparison.regressions)} · "
+        f"improvements {len(comparison.improvements)} · "
+        f"new {len(comparison.new_cases)} · removed {len(comparison.removed_cases)}"
+    )
+
+
 def _print_license(status: EntitlementStatus) -> None:
     console.print(f"tier: [bold]{status.tier}[/bold]")
     console.print(f"status: {status.message}")
@@ -155,6 +190,7 @@ def _build_judge() -> JudgeBackend | None:
             host=config.ollama_host,
             chat_path=config.ollama_chat_path,
             timeout_s=config.judge_timeout_s,
+            max_attempts=config.local_judge_max_attempts,
         )
     raise AdapterError(f"unknown judge provider: {config.judge}")
 
@@ -216,6 +252,13 @@ def run(
         bool,
         typer.Option("--yes-spend", help="Confirm estimated cloud judge spending."),
     ] = False,
+    save_baseline: Annotated[
+        Path | None,
+        typer.Option(
+            "--save-baseline",
+            help="Also write canonical run.json to this baseline directory.",
+        ),
+    ] = None,
 ) -> None:
     """Run a test suite and write its JSON result and, by default, HTML dossier."""
     try:
@@ -252,7 +295,12 @@ def run(
 
     async def _run() -> RunResult:
         try:
-            return await run_suite_async(loaded, adapter, judge)
+            return await run_suite_async(
+                loaded,
+                adapter,
+                judge,
+                max_concurrency=settings.runner_concurrency,
+            )
         finally:
             await adapter.aclose()
             if judge is not None and hasattr(judge, "aclose"):
@@ -273,6 +321,9 @@ def run(
     console.print(f"run.json written to {path}")
     if html_path is not None:
         console.print(f"report.html written to {html_path}")
+    if save_baseline is not None:
+        baseline_path = write_run_json(result, save_baseline, secrets)
+        console.print(f"baseline written to {baseline_path}")
     if track:
         regressions = ExperienceStore(settings.db_path).record_run(result, secrets)
         console.print(f"run tracked for {result.target.endpoint_redacted}")
@@ -283,6 +334,21 @@ def run(
     if result.verdict is RunVerdict.PASSED_WITH_WARNINGS and strict_warn:
         raise typer.Exit(code=EXIT_FAILED)
     raise typer.Exit(code=EXIT_OK)
+
+
+@app.command()
+def compare(
+    baseline: Annotated[Path, typer.Option(help="Baseline run.json path.")],
+    current: Annotated[Path, typer.Option(help="Current run.json path.")],
+) -> None:
+    """Compare two canonical run artifacts and fail on a regression."""
+    try:
+        comparison = compare_runs(load_run(baseline), load_run(current))
+    except BaselineError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    _print_comparison(comparison)
+    raise typer.Exit(code=EXIT_FAILED if comparison.regressions else EXIT_OK)
 
 
 @app.command()
