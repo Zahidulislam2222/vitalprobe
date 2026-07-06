@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from vitalprobe import __version__, cli
+from vitalprobe.experience.store import Regression
 from vitalprobe.schema import (
     RunCounts,
     RunResult,
@@ -223,6 +224,14 @@ def test_compare_exits_one_on_seeded_regression(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "REGRESSION" in result.output
     assert "case-001" in result.output
+
+
+def test_regression_output_is_legacy_windows_console_safe() -> None:
+    with cli.console.capture() as capture:
+        cli._print_regressions([Regression("case-001", Verdict.PASS, Verdict.FAIL)])
+    output = capture.get()
+    assert "PASS -> FAIL" in output
+    output.encode("cp1252")
 
 
 def test_track_and_history_commands(

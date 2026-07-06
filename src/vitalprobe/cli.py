@@ -131,7 +131,7 @@ def _print_regressions(regressions: list[Regression]) -> None:
     console.print(f"[red bold]{len(regressions)} regression(s) detected:[/red bold]")
     for regression in regressions:
         console.print(
-            f"  {regression.case_id}: {regression.previous} → {regression.current}"
+            f"  {regression.case_id}: {regression.previous} -> {regression.current}"
         )
 
 
