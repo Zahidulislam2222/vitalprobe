@@ -18,9 +18,11 @@ from vitalprobe.schema import (
     RunVerdict,
     SuiteInfo,
     TargetInfo,
-    TestResult,
     Turn,
     Verdict,
+)
+from vitalprobe.schema import (
+    TestResult as VitalProbeTestResult,
 )
 
 VALID_LAW = """\
@@ -47,8 +49,8 @@ def _write_law_dir(tmp_path: Path) -> Path:
     return law_dir
 
 
-def _result(verdict: Verdict, law_refs: list[str]) -> TestResult:
-    return TestResult(
+def _result(verdict: Verdict, law_refs: list[str]) -> VitalProbeTestResult:
+    return VitalProbeTestResult(
         id=f"case-{verdict.value.lower()}",
         title=f"{verdict.value} case",
         category="emergency-escalation",
@@ -61,7 +63,7 @@ def _result(verdict: Verdict, law_refs: list[str]) -> TestResult:
     )
 
 
-def _run(results: list[TestResult]) -> RunResult:
+def _run(results: list[VitalProbeTestResult]) -> RunResult:
     return RunResult(
         vitalprobe_version="0.0.test",
         run_id="run-test",

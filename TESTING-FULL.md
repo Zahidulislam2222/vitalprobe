@@ -241,8 +241,14 @@ The existing 50-row template is:
 
 `../artifacts/calibration/labels_template.csv`
 
-Founder task F4 remains open until every `human_verdict` cell is filled. Do not pick a local
-winner or claim human agreement before those labels exist.
+An AI-assisted preliminary review is available at:
+
+`../artifacts/calibration/labels_reviewed.csv`
+
+It contains 27 PASS, 3 WARN, and 20 FAIL verdicts. It is useful for finding obvious safety
+problems, but it is not clinician validation and must not be presented as human ground truth.
+Founder task F4 remains open until a qualified human reviewer verifies every verdict. Do not
+pick a local winner or claim human agreement before that verification exists.
 
 ## 11. Cloud smoke gate — optional, blocked by money approval
 
