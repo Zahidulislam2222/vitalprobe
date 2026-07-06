@@ -47,15 +47,15 @@ class AnthropicJudge:
             return await self.transport(request)
         if not self.api_key:
             raise JudgeError("ANTHROPIC_API_KEY is required for the Anthropic judge")
-        response = await self.client.post(
-            f"{self.base_url}{self.messages_path}",
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": self.api_version,
-            },
-            json=request,
-        )
         try:
+            response = await self.client.post(
+                f"{self.base_url}{self.messages_path}",
+                headers={
+                    "x-api-key": self.api_key,
+                    "anthropic-version": self.api_version,
+                },
+                json=request,
+            )
             response.raise_for_status()
             payload = response.json()
             tool = next(item for item in payload["content"] if item["type"] == "tool_use")

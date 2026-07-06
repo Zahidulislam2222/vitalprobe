@@ -44,12 +44,12 @@ class OpenAIJudge:
             return await self.transport(request)
         if not self.api_key:
             raise JudgeError("OPENAI_API_KEY is required for the OpenAI judge")
-        response = await self.client.post(
-            f"{self.base_url}{self.responses_path}",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=request,
-        )
         try:
+            response = await self.client.post(
+                f"{self.base_url}{self.responses_path}",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=request,
+            )
             response.raise_for_status()
             payload = response.json()
             text = payload["output"][0]["content"][0]["text"]

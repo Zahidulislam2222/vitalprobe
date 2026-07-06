@@ -261,13 +261,14 @@ def test_track_and_history_commands(
 
 
 def test_license_show_degrades_cleanly_to_free(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
+    monkeypatch.chdir(tmp_path)  # ignore any developer .env carrying a real dev license
     result = runner.invoke(cli.app, ["license", "show"])
     assert result.exit_code == 0
     # strip ANSI style codes: Rich may colorize when the invoking shell forces color
-    output = re.sub(r"\[[0-9;]*m", "", result.output)
+    output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     assert "tier: free" in output
     assert "Free engine and reporting features remain available." in result.output
 
@@ -281,9 +282,10 @@ def test_license_verify_rejects_tampered_file(tmp_path: Path) -> None:
 
 
 def test_gated_feature_command_shows_upgrade_message(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
+    monkeypatch.chdir(tmp_path)  # ignore any developer .env carrying a real dev license
     result = runner.invoke(cli.app, ["license", "check", "mcp_server"])
     assert result.exit_code == 2
     assert "requires a paid VitalProbe license" in result.output

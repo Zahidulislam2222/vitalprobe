@@ -46,12 +46,12 @@ class OllamaJudge:
     async def _request(self, request: dict[str, object]) -> str:
         if self.transport is not None:
             return await self.transport(request)
-        response = await self.client.post(f"{self.host}{self.chat_path}", json=request)
         try:
+            response = await self.client.post(f"{self.host}{self.chat_path}", json=request)
             response.raise_for_status()
             return str(response.json()["message"]["content"])
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
-            raise JudgeError(f"invalid Ollama judge response: {exc}") from exc
+            raise JudgeError(f"Ollama judge request failed: {exc!r}") from exc
 
     async def score(self, rubric: Rubric, case: TestCase, response_text: str) -> JudgeResult:
         payload = json.dumps(

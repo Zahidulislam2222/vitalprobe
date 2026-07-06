@@ -1,6 +1,7 @@
 """VitalProbe command-line interface."""
 
 import asyncio
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -28,7 +29,16 @@ from vitalprobe.entitlements.features import (
     require,
 )
 from vitalprobe.entitlements.license import EntitlementStatus, verify_license
-from vitalprobe.experience.store import ExperienceStore, Regression
+from vitalprobe.experience.generator import (
+    GenerationError,
+    VariantGenerator,
+    generate_drafts,
+)
+from vitalprobe.experience.store import (
+    CalibrationLabelRecord,
+    ExperienceStore,
+    Regression,
+)
 from vitalprobe.judges.anthropic import AnthropicJudge
 from vitalprobe.judges.base import JudgeBackend
 from vitalprobe.judges.ollama import OllamaJudge
@@ -439,6 +449,13 @@ def calibrate(
         bool,
         typer.Option("--yes-spend", help="Confirm estimated cloud judge spending."),
     ] = False,
+    track: Annotated[
+        bool,
+        typer.Option(
+            "--track",
+            help="Persist human labels and judge verdicts to the experience store (L3).",
+        ),
+    ] = False,
 ) -> None:
     """Score the same case/response items with every judge and, once founder labels exist,
     compute per-judge agreement, Cohen's kappa, and confusion matrices."""
@@ -504,6 +521,28 @@ def calibrate(
         else []
     )
     write_reports(output, items, scores, agreements, len(human_labels))
+
+    if track and human_labels:
+        case_by_item = {item.item_id: item.case.id for item in items}
+        recorded_at = datetime.now(UTC).isoformat()
+        label_rows = [
+            CalibrationLabelRecord(
+                item_id=score.item_id,
+                case_id=case_by_item.get(score.item_id, ""),
+                judge=judge_name,
+                human_verdict=human_labels[score.item_id].value,
+                judge_verdict=score.verdict.value if score.verdict else None,
+                agree=(score.verdict is human_labels[score.item_id])
+                if score.verdict
+                else None,
+                recorded_at=recorded_at,
+            )
+            for judge_name, judge_scores in scores.items()
+            for score in judge_scores
+            if score.item_id in human_labels
+        ]
+        count = ExperienceStore(settings.db_path).record_calibration_labels(label_rows)
+        console.print(f"{count} calibration label rows recorded to the experience store")
 
     console.print(f"{len(items)} items scored by {len(judge_backends)} judge(s)")
     errored = {
@@ -575,6 +614,13 @@ def history(
 @app.command()
 def validate(
     suite: Annotated[Path, typer.Option(help="Suite directory of test-case YAML files.")],
+    release: Annotated[
+        bool,
+        typer.Option(
+            "--release",
+            help="Release lint: additionally fail when any case is still status: draft.",
+        ),
+    ] = False,
 ) -> None:
     """Validate a test suite's YAML files without running anything."""
     try:
@@ -583,8 +629,82 @@ def validate(
         for line in exc.errors:
             console.print(f"[red]{line}[/red]")
         raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    if release:
+        drafts = [case.id for case in loaded.cases if case.status == "draft"]
+        if drafts:
+            console.print(
+                f"[red]release lint failed: {len(drafts)} draft case(s) present — "
+                "human review must flip them to status: reviewed[/red]"
+            )
+            for case_id in drafts:
+                console.print(f"  [red]{case_id}[/red]")
+            raise typer.Exit(code=EXIT_CONFIG_ERROR)
     console.print(
         f"[green]OK[/green] — {len(loaded.cases)} valid cases in suite '{loaded.name}'"
         + (f" v{loaded.pack_version}" if loaded.pack_version else "")
     )
     raise typer.Exit(code=EXIT_OK)
+
+
+@app.command()
+def learn(
+    from_run: Annotated[
+        str, typer.Option("--from-run", help="Tracked run id to learn from.")
+    ],
+    variants: Annotated[
+        int, typer.Option(min=1, help="Adversarial variants to draft per failed case.")
+    ],
+    output: Annotated[
+        Path, typer.Option(help="Drafts directory (NEVER a pack directory).")
+    ],
+) -> None:
+    """Draft adversarial test-case variants from a tracked run's failures (paid: learning).
+
+    Drafts stay `status: draft`; only human review may move them into a pack.
+    """
+    try:
+        require(FeatureFlag.LEARNING)
+    except FeatureUnavailableError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    settings = get_settings()
+    run = ExperienceStore(settings.db_path).run_by_id(from_run)
+    if run is None:
+        console.print(
+            f"[red]run '{from_run}' not found in the experience store "
+            "(record it with `vitalprobe run --track`)[/red]"
+        )
+        raise typer.Exit(code=EXIT_CONFIG_ERROR)
+    try:
+        loaded = load_suite(Path(run.suite.path))
+    except SuiteLoadError as exc:
+        for line in exc.errors:
+            console.print(f"[red]{line}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    try:
+        generator = VariantGenerator(settings)
+    except GenerationError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    async def _generate() -> tuple[list[Path], list[str]]:
+        try:
+            return await generate_drafts(run, loaded, generator, variants, output)
+        finally:
+            await generator.aclose()
+
+    written, errors = asyncio.run(_generate())
+    for line in errors:
+        console.print(f"[red]{line}[/red]")
+    if not written and not errors:
+        console.print("[green]No failed cases in this run — nothing to learn from.[/green]")
+        raise typer.Exit(code=EXIT_OK)
+    for path in written:
+        console.print(f"drafts written to {path}")
+    console.print(
+        f"{len(written)} draft file(s) from {len(written) + len(errors)} failed case(s). "
+        "Human review required before any pack inclusion."
+    )
+    raise typer.Exit(code=EXIT_OK if written else EXIT_FAILED)

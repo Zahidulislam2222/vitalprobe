@@ -70,6 +70,22 @@ class CheckRecord(SQLModel, table=True):
     evidence: str
 
 
+class CalibrationLabelRecord(SQLModel, table=True):
+    """L3 wiring: founder calibration labels and judge verdicts accumulate per case over
+    time; this feeds M6 harness re-runs and the future L4 training set."""
+
+    __tablename__ = "calibration_labels"
+
+    id: int | None = Field(default=None, primary_key=True)
+    item_id: str = Field(index=True)
+    case_id: str = Field(index=True)
+    judge: str = Field(index=True)
+    human_verdict: str
+    judge_verdict: str | None = None
+    agree: bool | None = None
+    recorded_at: str = ""
+
+
 @dataclass(frozen=True, slots=True)
 class Regression:
     case_id: str
@@ -237,6 +253,29 @@ class ExperienceStore:
     def last_run(self, target: str) -> RunResult | None:
         rows = self._run_rows(target)
         return RunResult.model_validate_json(rows[-1].payload_json) if rows else None
+
+    def run_by_id(self, run_id: str) -> RunResult | None:
+        with Session(self.engine) as session:
+            row = session.exec(
+                select(RunRecord).where(RunRecord.run_id == run_id)
+            ).first()
+        return RunResult.model_validate_json(row.payload_json) if row else None
+
+    def record_calibration_labels(self, rows: list[CalibrationLabelRecord]) -> int:
+        with Session(self.engine) as session:
+            session.add_all(rows)
+            session.commit()
+        return len(rows)
+
+    def calibration_labels(self, case_id: str) -> list[CalibrationLabelRecord]:
+        with Session(self.engine) as session:
+            return list(
+                session.exec(
+                    select(CalibrationLabelRecord)
+                    .where(CalibrationLabelRecord.case_id == case_id)
+                    .order_by(col(CalibrationLabelRecord.id))
+                ).all()
+            )
 
     def regressions(self, target: str) -> list[Regression]:
         rows = self._run_rows(target)

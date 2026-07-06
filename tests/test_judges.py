@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from vitalprobe.judges.anthropic import AnthropicJudge
-from vitalprobe.judges.base import load_rubric
+from vitalprobe.judges.base import JudgeError, load_rubric
 from vitalprobe.judges.ollama import OllamaJudge
 from vitalprobe.judges.openai import OpenAIJudge
 from vitalprobe.schema import TestCase as CaseContract
@@ -212,3 +212,22 @@ async def test_ollama_real_http_transport_contract() -> None:
     finally:
         await backend.aclose()
     assert result.verdict is Verdict.WARN
+
+
+async def test_ollama_timeout_becomes_judge_error() -> None:
+    def raise_timeout(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("seeded timeout", request=request)
+
+    backend = OllamaJudge(
+        "local-test-model",
+        host="https://ollama.test",
+        chat_path="/api/chat",
+        timeout_s=1,
+        max_attempts=3,
+        client=httpx.AsyncClient(transport=httpx.MockTransport(raise_timeout)),
+    )
+    try:
+        with pytest.raises(JudgeError, match="ReadTimeout"):
+            await backend.score(load_rubric("emergency-response-v1"), _case(), "response")
+    finally:
+        await backend.aclose()

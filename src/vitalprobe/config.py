@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     anthropic_max_tokens: int = 500
     local_model: str = ""
     judge_ollama_think: bool = False
+    generator_temperature: float = 1.0
+    generator_max_tokens: int = 400
     local_judge_max_attempts: int = Field(3, ge=1)
     judge_input_price_per_million: float = 0
     judge_output_price_per_million: float = 0
