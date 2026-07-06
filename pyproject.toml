@@ -46,6 +46,9 @@ demo = [
     "fastapi>=0.139.0",
     "uvicorn>=0.50.0",
 ]
+examples = [
+    "langgraph>=1.0",
+]
 
 [dependency-groups]
 dev = [

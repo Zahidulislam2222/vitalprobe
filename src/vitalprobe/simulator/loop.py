@@ -28,11 +28,11 @@ from vitalprobe.targets.base import TargetAdapter
 from vitalprobe.targets.rest import AdapterError
 
 
-def _target_escalated(reply: str, patterns: list[str]) -> bool:
+def target_escalated(reply: str, patterns: list[str]) -> bool:
     return any(re.search(p, reply, re.IGNORECASE) for p in patterns)
 
 
-def _run_trajectory_checks(
+def run_trajectory_checks(
     persona: Persona, transcript: list[Turn]
 ) -> tuple[list[CheckResult], int]:
     results: list[CheckResult] = []
@@ -73,7 +73,7 @@ async def simulate_persona(
         total_latency += meta.latency_ms
         last_reply = meta.text
         transcript.append(Turn(role="assistant", content=meta.text))
-        if _target_escalated(meta.text, persona.stop_on_escalation):
+        if target_escalated(meta.text, persona.stop_on_escalation):
             break
         if turn_number == persona.max_turns:
             break
@@ -102,7 +102,7 @@ async def simulate_persona(
             error=error,
         )
 
-    checks, must_count = _run_trajectory_checks(persona, transcript)
+    checks, must_count = run_trajectory_checks(persona, transcript)
     return TestResult(
         id=persona.id,
         title=persona.title,
