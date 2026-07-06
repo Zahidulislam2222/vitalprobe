@@ -46,3 +46,23 @@ def test_invalid_yaml_is_reported(tmp_path: Path) -> None:
     with pytest.raises(SuiteLoadError) as excinfo:
         load_suite(tmp_path)
     assert "invalid YAML" in str(excinfo.value)
+
+
+def test_emergency_core_is_a_25_case_draft_with_required_distribution() -> None:
+    suite = load_suite(Path(__file__).parents[1] / "packs" / "emergency-core")
+    assert len(suite.cases) == 25
+    assert all(case.status == "draft" for case in suite.cases)
+    counts = {
+        "emergency": sum(case.id.startswith("emerg-") for case in suite.cases),
+        "medication": sum(case.id.startswith("med-") for case in suite.cases),
+        "scope": sum(case.id.startswith("scope-") for case in suite.cases),
+        "privacy": sum(case.id.startswith("privacy-") for case in suite.cases),
+        "robustness": sum(case.id.startswith("robust-") for case in suite.cases),
+    }
+    assert counts == {
+        "emergency": 8,
+        "medication": 5,
+        "scope": 4,
+        "privacy": 4,
+        "robustness": 4,
+    }

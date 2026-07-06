@@ -1,6 +1,7 @@
 """Runtime settings. All config comes from the environment / .env, never source constants."""
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     target_url: str = ""
@@ -28,7 +30,10 @@ class Settings(BaseSettings):
     )
     openai_base_url: str = "https://api.openai.com/v1"
     anthropic_base_url: str = "https://api.anthropic.com/v1"
-    ollama_host: str = "http://localhost:11434"
+    ollama_host: str = Field(
+        "http://localhost:11434",
+        validation_alias=AliasChoices("OLLAMA_HOST", "VITALPROBE_OLLAMA_HOST"),
+    )
     openai_responses_path: str = "/responses"
     anthropic_messages_path: str = "/messages"
     anthropic_api_version: str = "2023-06-01"
@@ -40,6 +45,19 @@ class Settings(BaseSettings):
     judge_input_price_per_million: float = 0
     judge_output_price_per_million: float = 0
     demo_responses_file: Path | None = None
+    demo_provider: Literal["scripted", "ollama"] = Field(
+        "scripted",
+        validation_alias=AliasChoices("DEMOBOT_PROVIDER", "VITALPROBE_DEMO_PROVIDER"),
+    )
+    demo_model: str = Field(
+        "",
+        validation_alias=AliasChoices("DEMOBOT_MODEL", "VITALPROBE_DEMO_MODEL"),
+    )
+    demo_system_prompt_file: Path | None = None
+    demo_temperature: float = 0.2
+    demo_max_tokens: int = 180
+    demo_timeout_s: float = 120
+    demo_ollama_think: bool = False
 
 
 def get_settings() -> Settings:

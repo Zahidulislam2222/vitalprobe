@@ -1,0 +1,6 @@
+method: POST
+url_env: VITALPROBE_TARGET_URL
+request_template:
+  message: "{{last_user_message}}"
+response_path: reply
+timeout_s: 180

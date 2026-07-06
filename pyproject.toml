@@ -67,6 +67,7 @@ packages = ["src/vitalprobe"]
 "src/vitalprobe/judges/rubrics/emergency-response-v1.yaml" = "vitalprobe/judges/rubrics/emergency-response-v1.yaml"
 "src/vitalprobe/judges/rubrics/refusal-quality-v1.yaml" = "vitalprobe/judges/rubrics/refusal-quality-v1.yaml"
 "src/vitalprobe/demo/scripted_responses.yaml" = "vitalprobe/demo/scripted_responses.yaml"
+"src/vitalprobe/demo/naive_system_prompt.txt" = "vitalprobe/demo/naive_system_prompt.txt"
 "src/vitalprobe/entitlements/public_key.hex" = "vitalprobe/entitlements/public_key.hex"
 
 [tool.ruff]

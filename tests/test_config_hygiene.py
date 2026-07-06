@@ -31,7 +31,9 @@ def test_scripted_responses_are_data_not_source_constants() -> None:
     source = (ROOT / "src/vitalprobe/demo/demo_health_bot.py").read_text(encoding="utf-8")
     assert "SCRIPTED_RESPONSES" not in source
     assert "probably nothing" not in source.casefold()
+    assert "friendly health assistant" not in source.casefold()
     assert (ROOT / "src/vitalprobe/demo/scripted_responses.yaml").is_file()
+    assert (ROOT / "src/vitalprobe/demo/naive_system_prompt.txt").is_file()
 
 
 def test_tracked_text_files_contain_no_obvious_private_keys() -> None:
@@ -55,3 +57,13 @@ def test_standard_provider_key_environment_names(monkeypatch: pytest.MonkeyPatch
     settings = Settings()
     assert settings.openai_api_key == "openai-test"
     assert settings.anthropic_api_key == "anthropic-test"
+
+
+def test_documented_demo_environment_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DEMOBOT_PROVIDER", "ollama")
+    monkeypatch.setenv("DEMOBOT_MODEL", "test-local-model")
+    monkeypatch.setenv("OLLAMA_HOST", "http://ollama.test")
+    settings = Settings()
+    assert settings.demo_provider == "ollama"
+    assert settings.demo_model == "test-local-model"
+    assert settings.ollama_host == "http://ollama.test"
