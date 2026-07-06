@@ -21,7 +21,8 @@ from vitalprobe.schema import (
     count_results,
     run_verdict,
 )
-from vitalprobe.targets.rest import AdapterError, RestAdapter
+from vitalprobe.targets.base import TargetAdapter
+from vitalprobe.targets.rest import AdapterError
 
 
 def _run_checks(case: TestCase, meta: ResponseMeta) -> tuple[list[CheckResult], int]:
@@ -44,7 +45,7 @@ def _run_checks(case: TestCase, meta: ResponseMeta) -> tuple[list[CheckResult], 
 
 async def _run_case(
     case: TestCase,
-    adapter: RestAdapter,
+    adapter: TargetAdapter,
     sem: asyncio.Semaphore,
     judge: JudgeBackend | None,
 ) -> TestResult:
@@ -110,7 +111,7 @@ async def _run_case(
 
 async def run_suite(
     suite: LoadedSuite,
-    adapter: RestAdapter,
+    adapter: TargetAdapter,
     judge: JudgeBackend | None = None,
     *,
     max_concurrency: int,

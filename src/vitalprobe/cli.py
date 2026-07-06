@@ -44,6 +44,7 @@ from vitalprobe.judges.base import JudgeBackend
 from vitalprobe.judges.ollama import OllamaJudge
 from vitalprobe.judges.openai import OpenAIJudge
 from vitalprobe.law import LawLoadError, load_law_dir, validate_suite_refs
+from vitalprobe.mcp.server import build_server as build_mcp_server
 from vitalprobe.packs.loader import SuiteLoadError, load_suite
 from vitalprobe.report.html_report import write_html_report
 from vitalprobe.report.json_report import write_run_json
@@ -56,6 +57,11 @@ from vitalprobe.schema import (
     RunVerdict,
     Verdict,
 )
+from vitalprobe.simulator.loop import simulate as simulate_personas
+from vitalprobe.simulator.patient import PatientError, PatientLLM
+from vitalprobe.simulator.persona import PersonaError, load_personas
+from vitalprobe.targets.base import TargetAdapter
+from vitalprobe.targets.mcp import McpAdapter, load_mcp_adapter_config
 from vitalprobe.targets.rest import AdapterConfig, AdapterError, RestAdapter, load_adapter_config
 
 app = typer.Typer(
@@ -378,8 +384,7 @@ def run(
 
     config_path = adapter_config or (suite / "adapter.default.yaml")
     try:
-        config = load_adapter_config(config_path) if config_path.is_file() else AdapterConfig()
-        adapter = RestAdapter(config)
+        adapter = _build_adapter(config_path)
         judge = _build_judge()
     except AdapterError as exc:
         console.print(f"[red]{exc}[/red]")
@@ -426,6 +431,86 @@ def run(
     if result.verdict is RunVerdict.PASSED_WITH_WARNINGS and strict_warn:
         raise typer.Exit(code=EXIT_FAILED)
     raise typer.Exit(code=EXIT_OK)
+
+
+def _build_adapter(config_path: Path) -> TargetAdapter:
+    """REST by default; `kind: mcp` in the adapter YAML selects the MCP target adapter."""
+    if config_path.is_file():
+        mcp_config = load_mcp_adapter_config(config_path)
+        if mcp_config is not None:
+            return McpAdapter(mcp_config)
+        return RestAdapter(load_adapter_config(config_path))
+    return RestAdapter(AdapterConfig())
+
+
+@app.command()
+def simulate(
+    persona: Annotated[
+        Path, typer.Option(help="Persona YAML file or a directory of persona files.")
+    ],
+    output: Annotated[Path, typer.Option(help="Output directory for run.json / report.html.")],
+    adapter_config: Annotated[
+        Path | None,
+        typer.Option(help="Adapter config YAML (default: REST adapter from the environment)."),
+    ] = None,
+    format_: Annotated[
+        ReportFormat,
+        typer.Option("--format", help="html writes run.json and report.html; json only run.json."),
+    ] = ReportFormat.HTML,
+) -> None:
+    """Multi-turn synthetic-patient simulation: personas converse with the target bot,
+    trajectory checks judge the full transcript."""
+    try:
+        personas = load_personas(persona)
+    except PersonaError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    settings = get_settings()
+    try:
+        adapter = _build_adapter(adapter_config or Path("adapter.default.yaml"))
+        patient = PatientLLM(settings)
+    except (AdapterError, PatientError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+
+    async def _simulate() -> RunResult:
+        try:
+            return await simulate_personas(
+                personas,
+                adapter,
+                patient,
+                suite_name=f"simulator:{persona.name}",
+                suite_path=str(persona),
+            )
+        finally:
+            await adapter.aclose()
+            await patient.aclose()
+
+    result = asyncio.run(_simulate())
+    secrets = [settings.target_token, settings.openai_api_key, settings.anthropic_api_key]
+    path = write_run_json(result, output, secrets)
+    html_path = None
+    if format_ is ReportFormat.HTML:
+        html_path = write_html_report(result, output, secrets)
+    _print_summary(result)
+    console.print(f"run.json written to {path}")
+    if html_path is not None:
+        console.print(f"report.html written to {html_path}")
+    raise typer.Exit(
+        code=EXIT_FAILED if result.verdict is RunVerdict.FAILED else EXIT_OK
+    )
+
+
+@app.command("mcp-serve")
+def mcp_serve() -> None:
+    """Start VitalProbe as an MCP server (paid: mcp_server) over stdio."""
+    try:
+        server = build_mcp_server()
+    except FeatureUnavailableError as exc:
+        console.print(f"[yellow]{exc}[/yellow]")
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    server.run()
 
 
 @app.command()

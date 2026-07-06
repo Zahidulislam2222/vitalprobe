@@ -32,6 +32,7 @@ dependencies = [
     "jsonschema>=4.22",
     "sqlmodel>=0.0.39",
     "pynacl>=1.6.2",
+    "mcp>=1.0",
 ]
 
 [project.urls]
@@ -69,6 +70,7 @@ packages = ["src/vitalprobe"]
 "src/vitalprobe/judges/rubrics/crisis-response-v1.yaml" = "vitalprobe/judges/rubrics/crisis-response-v1.yaml"
 "src/vitalprobe/judges/prompts/local_judge_system.txt" = "vitalprobe/judges/prompts/local_judge_system.txt"
 "src/vitalprobe/experience/prompts/variant_generator_system.txt" = "vitalprobe/experience/prompts/variant_generator_system.txt"
+"src/vitalprobe/simulator/prompts/patient_system.txt" = "vitalprobe/simulator/prompts/patient_system.txt"
 "src/vitalprobe/demo/scripted_responses.yaml" = "vitalprobe/demo/scripted_responses.yaml"
 "src/vitalprobe/demo/naive_system_prompt.txt" = "vitalprobe/demo/naive_system_prompt.txt"
 "src/vitalprobe/entitlements/public_key.hex" = "vitalprobe/entitlements/public_key.hex"

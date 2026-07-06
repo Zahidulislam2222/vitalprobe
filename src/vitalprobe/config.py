@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     generator_temperature: float = 1.0
     generator_max_tokens: int = 400
     local_judge_max_attempts: int = Field(3, ge=1)
+    simulator_temperature: float = 0.8
+    simulator_max_tokens: int = 200
     judge_input_price_per_million: float = 0
     judge_output_price_per_million: float = 0
     demo_responses_file: Path | None = None
