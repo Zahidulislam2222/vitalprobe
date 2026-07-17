@@ -1,12 +1,15 @@
-"""P9a local dashboard: read-only pages over the experience store."""
+"""P9a/P9b local dashboard: read-only pages over the experience store."""
 
+import tempfile
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import create_engine
 
 from vitalprobe.config import Settings
 from vitalprobe.dashboard.app import create_app
-from vitalprobe.experience.store import ExperienceStore
+from vitalprobe.experience.store import CalibrationLabelRecord, ExperienceStore
 from vitalprobe.schema import (
     CheckResult,
     RunCounts,
@@ -159,6 +162,40 @@ def test_api_schema_endpoints_disabled() -> None:
     client = _client(_store())
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 404
+
+
+def test_license_page_defaults_to_free_tier_with_locked_flags(
+    monkeypatch: "pytest.MonkeyPatch",
+) -> None:
+    monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
+    monkeypatch.chdir(tempfile.gettempdir())  # no project .env
+    html = _client(_store()).get("/license").text
+    assert "free" in html
+    assert "locked — paid tier" in html
+    assert "law_mapping" in html
+    assert "mcp_server" in html
+
+
+def test_calibration_page_zero_state_and_counts() -> None:
+    store = _store()
+    client = _client(store)
+    assert "No labels recorded yet" in client.get("/calibration").text
+    store.record_calibration_labels(
+        [
+            CalibrationLabelRecord(
+                item_id="i1", case_id="case-001", judge="h", human_verdict="PASS"
+            ),
+            CalibrationLabelRecord(
+                item_id="i2", case_id="case-002", judge="h", human_verdict="FAIL"
+            ),
+            CalibrationLabelRecord(
+                item_id="i3", case_id="case-002", judge="h", human_verdict="FAIL"
+            ),
+        ]
+    )
+    html = client.get("/calibration").text
+    assert ">3<" in html
+    assert ">2<" in html
 
 
 def test_dashboard_defaults_are_localhost_only() -> None:

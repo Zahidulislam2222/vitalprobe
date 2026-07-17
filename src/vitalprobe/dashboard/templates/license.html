@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% set active_nav = "license" %}
+{% block title %}License{% endblock %}
+{% block content %}
+<h1>License &amp; entitlements</h1>
+<p class="lede">Verified offline on this machine — a missing or invalid license safely means the free tier.</p>
+
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Tier</div>
+    <div class="v"><span class="chip {% if status.valid %}PASS{% else %}ERROR{% endif %}">{{ status.tier }}</span></div></div>
+  <div class="meta-cell"><div class="k">Licensee</div>
+    <div class="v">{{ status.licensee or "—" }}</div></div>
+  <div class="meta-cell"><div class="k">Expires</div>
+    <div class="v mono">{{ status.expires_at or "—" }}</div></div>
+  <div class="meta-cell"><div class="k">Status</div>
+    <div class="v muted">{{ status.message }}</div></div>
+</div>
+
+<h2 class="section-head">Feature flags</h2>
+<section class="ledger">
+  <table>
+    <thead><tr><th>Feature</th><th>State</th></tr></thead>
+    <tbody>
+      {% for flag in all_flags %}
+      <tr>
+        <td class="mono">{{ flag }}</td>
+        <td>
+          {% if flag in status.features %}
+          <span class="chip PASS">unlocked</span>
+          {% else %}
+          <span class="chip ERROR">locked — paid tier</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

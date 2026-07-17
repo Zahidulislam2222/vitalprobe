@@ -311,6 +311,12 @@ class ExperienceStore:
             session.commit()
         return len(rows)
 
+    def calibration_label_summary(self) -> tuple[int, int]:
+        """(total recorded label rows, distinct labeled cases) for the status page."""
+        with Session(self.engine) as session:
+            rows = session.exec(select(CalibrationLabelRecord)).all()
+        return len(rows), len({row.case_id for row in rows})
+
     def calibration_labels(self, case_id: str) -> list[CalibrationLabelRecord]:
         with Session(self.engine) as session:
             return list(

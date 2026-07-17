@@ -13,6 +13,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from vitalprobe.baseline import RunComparison, compare_runs
+from vitalprobe.entitlements.features import FeatureFlag
+from vitalprobe.entitlements.license import verify_license
 from vitalprobe.experience.store import ExperienceStore
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -78,6 +80,25 @@ def create_app(store: ExperienceStore | None = None) -> FastAPI:
                 "comparison": comparison,
                 "error": error,
             },
+        )
+
+    @app.get("/license", response_class=HTMLResponse)
+    def license_status(request: Request) -> HTMLResponse:
+        # Same offline verification the CLI uses; every failure degrades to free.
+        status = verify_license()
+        return templates.TemplateResponse(
+            request,
+            "license.html",
+            {"status": status, "all_flags": list(FeatureFlag)},
+        )
+
+    @app.get("/calibration", response_class=HTMLResponse)
+    def calibration_status(request: Request) -> HTMLResponse:
+        total, cases = dashboard_store.calibration_label_summary()
+        return templates.TemplateResponse(
+            request,
+            "calibration.html",
+            {"total_labels": total, "labeled_cases": cases},
         )
 
     return app

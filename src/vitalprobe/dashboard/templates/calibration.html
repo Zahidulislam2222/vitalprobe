@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% set active_nav = "calibration" %}
+{% block title %}Calibration{% endblock %}
+{% block content %}
+<h1>Calibration status</h1>
+<p class="lede">Human labels recorded in the local experience store. Judge-agreement claims require qualified human labels — AI pre-labels never count.</p>
+
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Recorded label rows</div><div class="v">{{ total_labels }}</div></div>
+  <div class="meta-cell"><div class="k">Distinct labeled cases</div><div class="v">{{ labeled_cases }}</div></div>
+</div>
+
+{% if total_labels == 0 %}
+<section class="ledger">
+  <div class="empty">
+    No labels recorded yet. Fill the labels CSV from
+    <code>vitalprobe calibrate</code> and re-run it with <code>--labels &lt;csv&gt; --track</code>.
+  </div>
+</section>
+{% endif %}
+{% endblock %}
