@@ -1,0 +1,44 @@
+# VitalProbe one-command prospect demo: `docker compose up --build`
+# → dashboard on http://127.0.0.1:8800 (published on loopback ONLY — nothing LAN-exposed)
+# → scripted demo bot reachable from the dashboard container as http://demo-bot:8000/chat
+# Posture: no telemetry, no external assets, no accounts. The bind inside the container is
+# 0.0.0.0 (required for port mapping); the HOST publish stays pinned to 127.0.0.1.
+
+services:
+  dashboard:
+    build: .
+    environment:
+      VITALPROBE_DASHBOARD_HOST: 0.0.0.0
+      VITALPROBE_TARGET_URL: http://demo-bot:8000/chat
+    ports:
+      - "127.0.0.1:8800:8800"
+    volumes:
+      - vitalprobe-artifacts:/home/vitalprobe/artifacts
+    depends_on:
+      demo-bot:
+        condition: service_healthy
+
+  demo-bot:
+    build: .
+    command: ["uvicorn", "vitalprobe.demo.demo_health_bot:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+    # intentionally NOT published to the host — internal to the compose network
+
+  # Postgres for the later cloud phase — DO NOT enable without founder decision
+  # (activating it changes the no-server-side-storage posture; COMPLIANCE-GATE §A).
+  # postgres:
+  #   image: postgres:17-alpine
+  #   environment:
+  #     POSTGRES_DB: vitalprobe
+  #     POSTGRES_USER: vitalprobe
+  #     POSTGRES_PASSWORD: change-me   # move to secrets management before enabling
+  #   volumes:
+  #     - vitalprobe-pgdata:/var/lib/postgresql/data
+
+volumes:
+  vitalprobe-artifacts:
+  # vitalprobe-pgdata:

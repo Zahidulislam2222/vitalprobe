@@ -33,6 +33,22 @@ def seeded_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"reply": reply})
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_judge_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin judge settings to their zero-spend defaults for every test.
+
+    Environment variables outrank the `.env` file in pydantic-settings, so a developer
+    who configures a cloud judge in `code/.env` would otherwise flip the whole suite
+    onto the spend-gated path. Tests that exercise judge config set their own values,
+    which override this pin.
+    """
+    monkeypatch.setenv("VITALPROBE_JUDGE", "none")
+    monkeypatch.setenv("VITALPROBE_JUDGE_MODEL", "")
+    monkeypatch.setenv("VITALPROBE_JUDGE_INPUT_PRICE_PER_MILLION", "0")
+    monkeypatch.setenv("VITALPROBE_JUDGE_OUTPUT_PRICE_PER_MILLION", "0")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
 @pytest.fixture
 def mock_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(seeded_handler))
