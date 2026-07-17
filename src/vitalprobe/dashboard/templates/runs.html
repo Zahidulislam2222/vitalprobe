@@ -16,7 +16,7 @@
     <tbody>
       {% for s in summaries %}
       <tr>
-        <td><a class="run-link" href="/runs/{{ s.run_id }}">{{ s.run_id }}</a></td>
+        <td><a class="run-link" href="/runs/{{ s.run_id | urlencode }}">{{ s.run_id }}</a></td>
         <td><span class="chip {{ s.verdict }}">{{ s.verdict }}</span></td>
         <td class="counts">
           <span class="p">{{ s.pass_count }} pass</span><span class="sep">·</span>

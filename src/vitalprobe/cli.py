@@ -520,7 +520,9 @@ def dashboard() -> None:
         import uvicorn
 
         from vitalprobe.dashboard.app import create_app
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as exc:
+        if exc.name not in {"fastapi", "uvicorn"}:
+            raise
         console.print(
             "[yellow]dashboard dependencies missing: install with "
             "'uv sync --extra dashboard' (or 'pip install vitalprobe[dashboard]')[/yellow]"

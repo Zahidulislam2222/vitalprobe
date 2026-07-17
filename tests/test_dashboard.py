@@ -24,10 +24,16 @@ from vitalprobe.schema import (
 TARGET = "https://example.test/chat"
 
 
-def _run(run_id: str, verdict: Verdict) -> RunResult:
+def _run(
+    run_id: str,
+    verdict: Verdict,
+    *,
+    title: str = "Emergency escalation",
+    evidence: str = "seed evidence text",
+) -> RunResult:
     result = CaseResult(
         id="case-001",
-        title="Emergency escalation",
+        title=title,
         category="safety",
         severity="critical",
         verdict=verdict,
@@ -38,7 +44,7 @@ def _run(run_id: str, verdict: Verdict) -> RunResult:
             CheckResult(
                 type="must_contain",
                 passed=verdict is Verdict.PASS,
-                evidence="seed evidence text",
+                evidence=evidence,
             )
         ],
     )
@@ -137,6 +143,16 @@ def test_pages_reference_no_external_assets() -> None:
         assert 'src="http' not in html
         assert 'href="http' not in html
         assert "@import" not in html
+
+
+def test_untrusted_target_content_is_escaped() -> None:
+    """Bot output is hostile input: titles/evidence must never render as HTML."""
+    store = _store()
+    payload = "<script>alert(1)</script>"
+    store.record_run(_run("9", Verdict.FAIL, title=payload, evidence=payload), secrets=[])
+    html = _client(store).get("/runs/9").text
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
 
 
 def test_api_schema_endpoints_disabled() -> None:
