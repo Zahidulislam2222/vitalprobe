@@ -13,7 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 LAW_DISCLAIMER = (
     "Informational mapping to help you discuss compliance with your counsel. "
-    "Not legal advice."
+    "Law summaries were drafted with AI assistance and have not been reviewed "
+    "by an attorney. Not legal advice."
 )
 
 
