@@ -105,6 +105,19 @@ class HistoryEntry:
     regression_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class RunSummary:
+    run_id: str
+    target: str
+    started_at: str
+    verdict: str
+    pass_count: int
+    warn_count: int
+    fail_count: int
+    error_count: int
+    suite_name: str
+
+
 def compare_regressions(previous: RunResult, current: RunResult) -> list[Regression]:
     """Return PASS→WARN/FAIL transitions shared by two runs."""
     before = {result.id: result.verdict for result in previous.results}
@@ -249,6 +262,37 @@ class ExperienceStore:
             )
             previous = current
         return list(reversed(entries))
+
+    def targets(self) -> list[str]:
+        with Session(self.engine) as session:
+            rows = session.exec(
+                select(TargetRecord).order_by(col(TargetRecord.name))
+            ).all()
+        return [row.name for row in rows]
+
+    def run_summaries(self) -> list[RunSummary]:
+        """All tracked runs across targets, newest first."""
+        with Session(self.engine) as session:
+            target_names = {
+                row.id: row.name for row in session.exec(select(TargetRecord)).all()
+            }
+            rows = session.exec(
+                select(RunRecord).order_by(col(RunRecord.id).desc())
+            ).all()
+            return [
+                RunSummary(
+                    run_id=row.run_id,
+                    target=target_names.get(row.target_id, ""),
+                    started_at=row.started_at,
+                    verdict=row.verdict,
+                    pass_count=row.pass_count,
+                    warn_count=row.warn_count,
+                    fail_count=row.fail_count,
+                    error_count=row.error_count,
+                    suite_name=row.suite_name,
+                )
+                for row in rows
+            ]
 
     def last_run(self, target: str) -> RunResult | None:
         rows = self._run_rows(target)

@@ -46,6 +46,10 @@ demo = [
     "fastapi>=0.139.0",
     "uvicorn>=0.50.0",
 ]
+dashboard = [
+    "fastapi>=0.139.0",
+    "uvicorn>=0.50.0",
+]
 examples = [
     "langgraph>=1.0",
 ]
@@ -95,3 +99,7 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+filterwarnings = [
+    # Third-party notice inside fastapi.testclient (httpx vs httpx2); not our code.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

@@ -1681,6 +1681,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+dashboard = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 demo = [
     { name = "fastapi" },
     { name = "uvicorn" },
@@ -1700,6 +1704,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", marker = "extra == 'dashboard'", specifier = ">=0.139.0" },
     { name = "fastapi", marker = "extra == 'demo'", specifier = ">=0.139.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },
@@ -1714,9 +1719,10 @@ requires-dist = [
     { name = "sqlmodel", specifier = ">=0.0.39" },
     { name = "tenacity", specifier = ">=8.4" },
     { name = "typer", specifier = ">=0.15" },
+    { name = "uvicorn", marker = "extra == 'dashboard'", specifier = ">=0.50.0" },
     { name = "uvicorn", marker = "extra == 'demo'", specifier = ">=0.50.0" },
 ]
-provides-extras = ["demo", "examples"]
+provides-extras = ["demo", "dashboard", "examples"]
 
 [package.metadata.requires-dev]
 dev = [

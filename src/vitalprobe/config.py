@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     demo_timeout_s: float = 120
     demo_ollama_think: bool = False
     runner_concurrency: int = Field(4, ge=1)
+    # Localhost by design (BUILD-PLAN §9): the dashboard is local-only, no accounts.
+    dashboard_host: str = "127.0.0.1"
+    dashboard_port: int = Field(8800, ge=1, le=65535)
 
 
 def get_settings() -> Settings:

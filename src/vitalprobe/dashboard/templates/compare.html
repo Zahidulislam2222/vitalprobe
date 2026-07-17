@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% set active_nav = "compare" %}
+{% block title %}Compare{% endblock %}
+{% block content %}
+<h1>Compare runs</h1>
+<p class="lede">Baseline against candidate — the same PASS→WARN/FAIL regression contract as the CLI.</p>
+
+{% if error %}<div class="notice">{{ error }}</div>{% endif %}
+
+<form class="picker" method="get" action="/compare">
+  <div>
+    <label for="baseline">Baseline run</label>
+    <select id="baseline" name="baseline">
+      {% for s in summaries %}
+      <option value="{{ s.run_id }}" {% if s.run_id == baseline %}selected{% endif %}>
+        {{ s.run_id }} — {{ s.verdict }} ({{ s.started_at }})
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="current">Candidate run</label>
+    <select id="current" name="current">
+      {% for s in summaries %}
+      <option value="{{ s.run_id }}" {% if s.run_id == current %}selected{% endif %}>
+        {{ s.run_id }} — {{ s.verdict }} ({{ s.started_at }})
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit">Compare</button>
+</form>
+
+{% if not summaries %}
+<section class="ledger"><div class="empty">Nothing to compare — record at least two runs first.</div></section>
+{% endif %}
+
+{% if comparison %}
+<h2 class="section-head">Regressions ({{ comparison.regressions | length }})</h2>
+<section class="ledger">
+  {% if comparison.regressions %}
+  <table>
+    <thead><tr><th>Case</th><th>Was</th><th>Now</th></tr></thead>
+    <tbody>
+      {% for change in comparison.regressions %}
+      <tr>
+        <td class="mono">{{ change.case_id }}</td>
+        <td><span class="chip {{ change.previous }}">{{ change.previous }}</span></td>
+        <td><span class="chip {{ change.current }}">{{ change.current }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">No regressions between these runs.</div>{% endif %}
+</section>
+
+<h2 class="section-head">Improvements ({{ comparison.improvements | length }})</h2>
+<section class="ledger">
+  {% if comparison.improvements %}
+  <table>
+    <thead><tr><th>Case</th><th>Was</th><th>Now</th></tr></thead>
+    <tbody>
+      {% for change in comparison.improvements %}
+      <tr>
+        <td class="mono">{{ change.case_id }}</td>
+        <td><span class="chip {{ change.previous }}">{{ change.previous }}</span></td>
+        <td><span class="chip {{ change.current }}">{{ change.current }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">No improvements between these runs.</div>{% endif %}
+</section>
+
+{% if comparison.new_cases or comparison.removed_cases %}
+<h2 class="section-head">Suite changes</h2>
+<section class="ledger">
+  <table>
+    <thead><tr><th>Case</th><th>Change</th><th>Verdict</th></tr></thead>
+    <tbody>
+      {% for state in comparison.new_cases %}
+      <tr><td class="mono">{{ state.case_id }}</td><td>new in candidate</td>
+        <td><span class="chip {{ state.verdict }}">{{ state.verdict }}</span></td></tr>
+      {% endfor %}
+      {% for state in comparison.removed_cases %}
+      <tr><td class="mono">{{ state.case_id }}</td><td class="muted">removed since baseline</td>
+        <td><span class="chip {{ state.verdict }}">{{ state.verdict }}</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

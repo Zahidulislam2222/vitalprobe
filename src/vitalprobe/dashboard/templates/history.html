@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set active_nav = "runs" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<h1>Target history</h1>
+<p class="lede mono">{{ target }}</p>
+<section class="ledger">
+  {% if entries %}
+  <table>
+    <thead>
+      <tr><th>Run</th><th>Started</th><th>Verdict</th><th>Counts</th><th>Regressions</th></tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td><a class="run-link" href="/runs/{{ entry.run_id }}">{{ entry.run_id }}</a></td>
+        <td class="mono muted">{{ entry.started_at }}</td>
+        <td><span class="chip {{ entry.verdict }}">{{ entry.verdict }}</span></td>
+        <td class="counts">
+          <span class="p">{{ entry.pass_count }} pass</span><span class="sep">·</span>
+          <span class="w">{{ entry.warn_count }} warn</span><span class="sep">·</span>
+          <span class="f">{{ entry.fail_count }} fail</span><span class="sep">·</span>
+          <span class="e">{{ entry.error_count }} err</span>
+        </td>
+        <td>
+          {% if entry.regression_count %}
+          <span class="chip FAIL">{{ entry.regression_count }} regression{{ "s" if entry.regression_count != 1 }}</span>
+          {% else %}<span class="muted">none</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No tracked runs for this target yet.</div>
+  {% endif %}
+</section>
+{% endblock %}

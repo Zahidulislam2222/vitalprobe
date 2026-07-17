@@ -514,6 +514,27 @@ def mcp_serve() -> None:
 
 
 @app.command()
+def dashboard() -> None:
+    """Serve the local evidence dashboard (localhost only; read-only; free tier)."""
+    try:
+        import uvicorn
+
+        from vitalprobe.dashboard.app import create_app
+    except ModuleNotFoundError:
+        console.print(
+            "[yellow]dashboard dependencies missing: install with "
+            "'uv sync --extra dashboard' (or 'pip install vitalprobe[dashboard]')[/yellow]"
+        )
+        raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    settings = get_settings()
+    console.print(
+        f"VitalProbe dashboard on http://{settings.dashboard_host}:{settings.dashboard_port} "
+        "(local only; Ctrl+C to stop)"
+    )
+    uvicorn.run(create_app(), host=settings.dashboard_host, port=settings.dashboard_port)
+
+
+@app.command()
 def compare(
     baseline: Annotated[Path, typer.Option(help="Baseline run.json path.")],
     current: Annotated[Path, typer.Option(help="Current run.json path.")],

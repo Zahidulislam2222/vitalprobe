@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set active_nav = "runs" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<h1>Tracked runs</h1>
+<p class="lede">Every audit recorded in the local experience store, newest first.</p>
+<section class="ledger">
+  {% if summaries %}
+  <table>
+    <thead>
+      <tr>
+        <th>Run</th><th>Verdict</th><th>Counts</th><th>Target</th>
+        <th>Suite</th><th>Started</th><th>History</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in summaries %}
+      <tr>
+        <td><a class="run-link" href="/runs/{{ s.run_id }}">{{ s.run_id }}</a></td>
+        <td><span class="chip {{ s.verdict }}">{{ s.verdict }}</span></td>
+        <td class="counts">
+          <span class="p">{{ s.pass_count }} pass</span><span class="sep">·</span>
+          <span class="w">{{ s.warn_count }} warn</span><span class="sep">·</span>
+          <span class="f">{{ s.fail_count }} fail</span><span class="sep">·</span>
+          <span class="e">{{ s.error_count }} err</span>
+        </td>
+        <td class="mono">{{ s.target }}</td>
+        <td>{{ s.suite_name }}</td>
+        <td class="mono muted">{{ s.started_at }}</td>
+        <td><a class="run-link" href="/history?target={{ s.target | urlencode }}">history →</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    No tracked runs yet. Record one with
+    <code>vitalprobe run --suite &lt;dir&gt; --output &lt;dir&gt; --track</code>
+    and it will appear here.
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

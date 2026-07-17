@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}VitalProbe{% endblock %} · local evidence console</title>
+<style>
+  :root {
+    --paper: #f6f3ec;
+    --panel: #fffdf8;
+    --ink: #1c2422;
+    --muted: #6d6a5f;
+    --hairline: #ddd6c6;
+    --accent: #0c6b5d;
+    --accent-soft: #e4efec;
+    --pass: #146c43;
+    --warn: #9a6a00;
+    --fail: #a02128;
+    --error: #5c5c5c;
+    --serif: "Charter", "Bitstream Charter", "Georgia", "Times New Roman", serif;
+    --mono: ui-monospace, "Cascadia Mono", "Consolas", "Menlo", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 16px;
+    line-height: 1.55;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header.masthead {
+    border-top: 4px solid var(--accent);
+    border-bottom: 1px solid var(--hairline);
+    background: var(--panel);
+  }
+  .masthead-inner {
+    max-width: 1080px; margin: 0 auto; padding: 18px 24px;
+    display: flex; align-items: baseline; gap: 24px; flex-wrap: wrap;
+  }
+  .wordmark {
+    font-size: 21px; letter-spacing: 0.22em; font-weight: 700;
+    text-decoration: none; color: var(--ink);
+  }
+  .wordmark .probe { color: var(--accent); }
+  .wordmark .pulse {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); margin-left: 6px; vertical-align: baseline;
+  }
+  .tagline { color: var(--muted); font-style: italic; font-size: 14px; }
+  nav.primary { margin-left: auto; display: flex; gap: 18px; }
+  nav.primary a {
+    color: var(--ink); text-decoration: none; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    border-bottom: 2px solid transparent; padding-bottom: 2px;
+  }
+  nav.primary a:hover, nav.primary a[aria-current="page"] {
+    border-bottom-color: var(--accent); color: var(--accent);
+  }
+  main { flex: 1; max-width: 1080px; width: 100%; margin: 0 auto; padding: 32px 24px 48px; }
+  h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .lede { color: var(--muted); margin-bottom: 28px; font-style: italic; }
+  section.ledger {
+    background: var(--panel); border: 1px solid var(--hairline);
+    border-radius: 2px; padding: 0; overflow-x: auto;
+    animation: settle 0.35s ease-out;
+  }
+  @keyframes settle { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  thead th {
+    text-align: left; font-family: var(--mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted);
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--hairline);
+  }
+  tbody td { padding: 11px 16px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #f2eee3; }
+  a.run-link { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 13.5px; }
+  a.run-link:hover { text-decoration: underline; }
+  .chip {
+    display: inline-block; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.08em; padding: 2px 9px; border-radius: 2px;
+    border: 1px solid currentColor; font-weight: 600;
+  }
+  .chip.PASSED, .chip.PASS { color: var(--pass); background: #e9f2ec; }
+  .chip.WARN, .chip.PASSED_WITH_WARNINGS { color: var(--warn); background: #f7f0dd; }
+  .chip.FAILED, .chip.FAIL { color: var(--fail); background: #f8e9ea; }
+  .chip.ERROR { color: var(--error); background: #eeeeea; }
+  .counts { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+  .counts .p { color: var(--pass); } .counts .w { color: var(--warn); }
+  .counts .f { color: var(--fail); } .counts .e { color: var(--error); }
+  .counts .sep { color: var(--hairline); padding: 0 4px; }
+  .mono { font-family: var(--mono); font-size: 13px; }
+  .muted { color: var(--muted); }
+  .empty {
+    padding: 48px 24px; text-align: center; color: var(--muted); font-style: italic;
+  }
+  .empty code {
+    font-family: var(--mono); font-style: normal; font-size: 13px;
+    background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 2px;
+  }
+  .evidence {
+    font-family: var(--mono); font-size: 12.5px; background: #f2eee3;
+    border-left: 3px solid var(--hairline); padding: 8px 12px; margin-top: 6px;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .check-pass { color: var(--pass); } .check-fail { color: var(--fail); }
+  form.picker { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 24px; }
+  form.picker label { display: block; font-family: var(--mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 4px; }
+  form.picker select {
+    font-family: var(--mono); font-size: 13px; padding: 7px 10px;
+    border: 1px solid var(--hairline); background: var(--panel); color: var(--ink);
+    border-radius: 2px; min-width: 260px;
+  }
+  form.picker button {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+    background: var(--accent); color: #fffdf8; border: none; padding: 9px 20px;
+    border-radius: 2px; cursor: pointer;
+  }
+  form.picker button:hover { background: #095548; }
+  .notice { border: 1px solid var(--fail); color: var(--fail); background: #f8e9ea;
+    padding: 10px 14px; border-radius: 2px; margin-bottom: 20px; font-size: 14px; }
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0; border: 1px solid var(--hairline); background: var(--panel);
+    border-radius: 2px; margin-bottom: 28px; }
+  .meta-cell { padding: 14px 16px; border-right: 1px solid var(--hairline); }
+  .meta-cell:last-child { border-right: none; }
+  .meta-cell .k { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--muted); margin-bottom: 3px; }
+  .meta-cell .v { font-size: 15px; word-break: break-word; }
+  h2.section-head { font-size: 13px; font-family: var(--mono); text-transform: uppercase;
+    letter-spacing: 0.14em; color: var(--muted); margin: 30px 0 10px; }
+  footer.colophon {
+    border-top: 1px solid var(--hairline); background: var(--panel);
+    padding: 14px 24px; text-align: center; font-size: 12.5px; color: var(--muted);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-inner">
+    <a class="wordmark" href="/">VITAL<span class="probe">PROBE</span><span class="pulse"></span></a>
+    <span class="tagline">local evidence console</span>
+    <nav class="primary">
+      <a href="/" {% if active_nav == "runs" %}aria-current="page"{% endif %}>Runs</a>
+      <a href="/compare" {% if active_nav == "compare" %}aria-current="page"{% endif %}>Compare</a>
+    </nav>
+  </div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer class="colophon">
+  Runs entirely on this machine — no accounts, no cloud, no telemetry.
+  Synthetic test data only; reports are observed results, not a compliance determination.
+</footer>
+</body>
+</html>

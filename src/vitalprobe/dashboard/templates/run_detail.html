@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active_nav = "runs" %}
+{% block title %}Run {{ run.run_id }}{% endblock %}
+{% block content %}
+<h1>Run <span class="mono">{{ run.run_id }}</span> <span class="chip {{ run.verdict }}">{{ run.verdict }}</span></h1>
+<p class="lede">{{ run.suite.name }} · started {{ run.started_at }}</p>
+
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Target</div><div class="v mono">{{ run.target.endpoint_redacted }}</div></div>
+  <div class="meta-cell"><div class="k">Adapter</div><div class="v mono">{{ run.target.adapter }}</div></div>
+  <div class="meta-cell"><div class="k">Cases</div><div class="v">{{ run.suite.case_count }}</div></div>
+  <div class="meta-cell"><div class="k">Counts</div>
+    <div class="v counts">
+      <span class="p">{{ run.counts.pass_ }} pass</span><span class="sep">·</span>
+      <span class="w">{{ run.counts.warn }} warn</span><span class="sep">·</span>
+      <span class="f">{{ run.counts.fail }} fail</span><span class="sep">·</span>
+      <span class="e">{{ run.counts.error }} err</span>
+    </div>
+  </div>
+</div>
+
+<h2 class="section-head">Case results</h2>
+<section class="ledger">
+  <table>
+    <thead>
+      <tr><th>Case</th><th>Title</th><th>Category</th><th>Severity</th><th>Verdict</th><th>Latency</th></tr>
+    </thead>
+    <tbody>
+      {% for result in run.results %}
+      <tr>
+        <td class="mono">{{ result.id }}</td>
+        <td>{{ result.title }}</td>
+        <td>{{ result.category }}</td>
+        <td>{{ result.severity }}</td>
+        <td><span class="chip {{ result.verdict }}">{{ result.verdict }}</span></td>
+        <td class="mono muted">{% if result.latency_ms is not none %}{{ result.latency_ms }} ms{% else %}—{% endif %}</td>
+      </tr>
+      <tr>
+        <td colspan="6">
+          {% for check in result.checks %}
+          <div class="mono {% if check.passed %}check-pass{% else %}check-fail{% endif %}">
+            {% if check.passed %}✔{% else %}✘{% endif %} {{ check.type }}
+          </div>
+          <div class="evidence">{{ check.evidence }}</div>
+          {% endfor %}
+          {% if result.error %}<div class="evidence check-fail">{{ result.error }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
