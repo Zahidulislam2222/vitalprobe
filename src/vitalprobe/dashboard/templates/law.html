@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% set active_nav = "law" %}
+{% block title %}Law mapping{% endblock %}
+{% block content %}
+<h1>Law mapping</h1>
+<p class="lede">Requirement summaries that suite cases can reference via <span class="mono">law_refs</span>.</p>
+
+<div class="disclaimer">{{ disclaimer }}</div>
+
+{% if not view.configured %}
+<section class="ledger">
+  <div class="empty">
+    No law directory configured. Set <code>VITALPROBE_LAW_DIR</code> to the law schema
+    directory from your paid pack bundle, then reload this page.
+  </div>
+</section>
+{% elif view.errors %}
+<div class="notice">
+  The configured law directory failed to load:
+  <ul style="margin: 6px 0 0 18px;">
+    {% for line in view.errors %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+</div>
+{% else %}
+{% for law in view.laws %}
+<h2 class="section-head">{{ law.name }} · {{ law.jurisdiction }}</h2>
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Law id</div><div class="v mono">{{ law.law_id }}</div></div>
+  <div class="meta-cell"><div class="k">Status</div><div class="v">{{ law.status }}</div></div>
+  <div class="meta-cell"><div class="k">Effective</div><div class="v mono">{{ law.effective_date }}</div></div>
+  <div class="meta-cell"><div class="k">Source</div><div class="v mono">{{ law.source_url }}</div></div>
+</div>
+<section class="ledger" style="margin-bottom: 24px;">
+  <table>
+    <thead><tr><th>Requirement</th><th>Summary</th><th>Citation</th></tr></thead>
+    <tbody>
+      {% for req in law.requirements %}
+      <tr>
+        <td class="mono">{{ law.law_id }}:{{ req.req_id }}</td>
+        <td>{{ req.summary }}</td>
+        <td class="muted">{{ req.citation }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

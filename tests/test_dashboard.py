@@ -1,15 +1,23 @@
 """P9a/P9b local dashboard: read-only pages over the experience store."""
 
+import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import create_engine
 
 from vitalprobe.config import Settings
 from vitalprobe.dashboard.app import create_app
+from vitalprobe.dashboard.services import TriggerOutcome
+from vitalprobe.entitlements.features import FeatureFlag
+from vitalprobe.entitlements.license import EntitlementStatus
 from vitalprobe.experience.store import CalibrationLabelRecord, ExperienceStore
+from vitalprobe.law import LAW_DISCLAIMER
 from vitalprobe.schema import (
     CheckResult,
     RunCounts,
@@ -139,9 +147,10 @@ def test_compare_unknown_run_shows_error_not_crash() -> None:
     assert "unknown run id" in response.text
 
 
-def test_pages_reference_no_external_assets() -> None:
+def test_pages_reference_no_external_assets(monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolate_free_tier(monkeypatch)  # deterministic: learning/law render their locked pages
     client = _client(_seeded_store())
-    for path in ("/", "/runs/2", "/compare"):
+    for path in ("/", "/runs/2", "/compare", "/trigger-run", "/learning", "/law"):
         html = client.get(path).text
         assert 'src="http' not in html
         assert 'href="http' not in html
@@ -202,3 +211,246 @@ def test_dashboard_defaults_are_localhost_only() -> None:
     settings = Settings(_env_file=None)
     assert settings.dashboard_host == "127.0.0.1"
     assert 1 <= settings.dashboard_port <= 65535
+
+
+# --- P9b part 2: paid surfaces (learning, law) + trigger-run form ---
+
+
+def _isolate_free_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("VITALPROBE_LICENSE_FILE", raising=False)
+    monkeypatch.chdir(tempfile.gettempdir())  # no project .env
+
+
+def _licensed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unlock learning + law_mapping exactly where `entitlements.require` looks."""
+    status = EntitlementStatus(
+        tier="business",
+        features=frozenset({FeatureFlag.LEARNING, FeatureFlag.LAW_MAPPING}),
+        valid=True,
+        message="test license",
+    )
+    monkeypatch.setattr(
+        "vitalprobe.entitlements.license.verify_license",
+        lambda path=None, **kwargs: status,
+    )
+
+
+def _draft_case(case_id: str = "case-001-var-1") -> dict[str, object]:
+    return {
+        "id": case_id,
+        "title": "Emergency escalation (adversarial variant 1)",
+        "category": "safety",
+        "severity": "critical",
+        "status": "draft",
+        "input": {"turns": [{"role": "user", "content": "synthetic variant"}]},
+        "expect": {"category": "safety", "must": [{"type": "nonempty"}]},
+        "notes": "auto-generated from run 1, case case-001",
+    }
+
+
+LAW_YAML = """\
+law_id: test-law
+jurisdiction: Testland
+name: Test Health Communications Act
+status: draft
+effective_date: "2025-01-01"
+source_url: https://example.test/law
+requirements:
+  - req_id: crisis-routing
+    summary: Crisis messages must be routed to emergency guidance.
+    citation: "Section 1(a)"
+"""
+
+
+def test_learning_free_tier_shows_locked_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolate_free_tier(monkeypatch)
+    response = _client(_store()).get("/learning")
+    assert response.status_code == 200
+    assert "requires a paid VitalProbe license" in response.text
+    assert "&#39;learning&#39;" in response.text  # the flag named in the escaped CLI wording
+
+
+def test_law_free_tier_shows_locked_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    _isolate_free_tier(monkeypatch)
+    response = _client(_store()).get("/law")
+    assert response.status_code == 200
+    assert "requires a paid VitalProbe license" in response.text
+    assert "&#39;law mapping&#39;" in response.text
+
+
+def test_learning_licensed_lists_drafts_and_flags_bad_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _licensed(monkeypatch)
+    drafts = tmp_path / "drafts"
+    drafts.mkdir()
+    (drafts / "case-001-variants.yaml").write_text(
+        yaml.safe_dump([_draft_case()]), encoding="utf-8"
+    )
+    (drafts / "broken.yaml").write_text("just a string", encoding="utf-8")
+    settings = Settings(_env_file=None, drafts_dir=drafts)
+    html = TestClient(create_app(_store(), settings=settings)).get("/learning").text
+    assert "case-001-var-1" in html
+    assert "adversarial variant 1" in html
+    assert "auto-generated from run 1" in html
+    assert "broken.yaml" in html
+    assert "unreadable draft file" in html
+
+
+def test_learning_licensed_empty_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _licensed(monkeypatch)
+    settings = Settings(_env_file=None, drafts_dir=tmp_path / "missing")
+    html = TestClient(create_app(_store(), settings=settings)).get("/learning").text
+    assert "No drafts yet" in html
+
+
+def test_law_licensed_unconfigured_shows_hint(monkeypatch: pytest.MonkeyPatch) -> None:
+    _licensed(monkeypatch)
+    monkeypatch.delenv("VITALPROBE_LAW_DIR", raising=False)
+    settings = Settings(_env_file=None)
+    html = TestClient(create_app(_store(), settings=settings)).get("/law").text
+    assert "No law directory configured" in html
+    assert "VITALPROBE_LAW_DIR" in html
+
+
+def test_law_licensed_renders_laws_and_disclaimer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _licensed(monkeypatch)
+    law_dir = tmp_path / "law"
+    law_dir.mkdir()
+    (law_dir / "test-law.yaml").write_text(LAW_YAML, encoding="utf-8")
+    settings = Settings(_env_file=None, law_dir=law_dir)
+    html = TestClient(create_app(_store(), settings=settings)).get("/law").text
+    assert "Test Health Communications Act" in html
+    assert "test-law:crisis-routing" in html
+    assert "Crisis messages must be routed to emergency guidance." in html
+    assert LAW_DISCLAIMER in html
+
+
+def test_law_licensed_invalid_dir_renders_errors_not_500(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _licensed(monkeypatch)
+    law_dir = tmp_path / "law"
+    law_dir.mkdir()
+    (law_dir / "bad.yaml").write_text("law_id: [broken", encoding="utf-8")
+    settings = Settings(_env_file=None, law_dir=law_dir)
+    response = TestClient(create_app(_store(), settings=settings)).get("/law")
+    assert response.status_code == 200
+    assert "failed to load" in response.text
+
+
+def test_trigger_form_renders() -> None:
+    html = _client(_store()).get("/trigger-run").text
+    assert 'name="suite"' in html
+    assert 'name="target_url"' in html
+
+
+def test_trigger_run_executes_cli_argv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[list[str], dict[str, str], float]] = []
+
+    def fake_exec(argv: list[str], env: dict[str, str], timeout_s: float) -> TriggerOutcome:
+        calls.append((argv, env, timeout_s))
+        return TriggerOutcome(exit_code=0, output="run.json written to somewhere")
+
+    suite_dir = tmp_path / "suite"
+    suite_dir.mkdir()
+    settings = Settings(_env_file=None, dashboard_runs_dir=tmp_path / "runs")
+    client = TestClient(
+        create_app(_store(), settings=settings, run_executor=fake_exec),
+        base_url="http://127.0.0.1:8800",
+    )
+    response = client.post(
+        "/trigger-run",
+        data={"suite": str(suite_dir), "target_url": "http://127.0.0.1:9999/chat"},
+        headers={"origin": "http://127.0.0.1:8800"},
+    )
+    assert response.status_code == 200
+    argv, env, timeout_s = calls[0]
+    assert argv[:4] == [sys.executable, "-m", "vitalprobe"] + ["run"]
+    assert "--track" in argv
+    assert str(suite_dir) in argv
+    assert env["VITALPROBE_TARGET_URL"] == "http://127.0.0.1:9999/chat"
+    assert timeout_s == settings.dashboard_run_timeout_s
+    assert "exit 0" in response.text
+    assert "run.json written" in response.text
+
+
+def test_trigger_run_invalid_suite_shows_error_without_subprocess(
+    tmp_path: Path,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_exec(argv: list[str], env: dict[str, str], timeout_s: float) -> TriggerOutcome:
+        calls.append(argv)
+        return TriggerOutcome(exit_code=0, output="")
+
+    settings = Settings(_env_file=None, dashboard_runs_dir=tmp_path / "runs")
+    client = TestClient(create_app(_store(), settings=settings, run_executor=fake_exec))
+    response = client.post("/trigger-run", data={"suite": str(tmp_path / "nope")})
+    assert response.status_code == 200
+    assert "existing directory" in response.text
+    assert calls == []
+
+
+def test_trigger_run_rejects_cross_site_origin(tmp_path: Path) -> None:
+    suite_dir = tmp_path / "suite"
+    suite_dir.mkdir()
+    response = _client(_store()).post(
+        "/trigger-run",
+        data={"suite": str(suite_dir)},
+        headers={"origin": "https://evil.example"},
+    )
+    assert response.status_code == 403
+
+
+def test_trigger_run_rejects_other_local_port_origin(tmp_path: Path) -> None:
+    """Another server on loopback (a dev server, another tool) is still cross-site."""
+    suite_dir = tmp_path / "suite"
+    suite_dir.mkdir()
+    client = TestClient(create_app(_store()), base_url="http://127.0.0.1:8800")
+    response = client.post(
+        "/trigger-run",
+        data={"suite": str(suite_dir)},
+        headers={"origin": "http://localhost:9999"},
+    )
+    assert response.status_code == 403
+
+
+def test_trigger_run_timeout_is_reported(tmp_path: Path) -> None:
+    def fake_exec(argv: list[str], env: dict[str, str], timeout_s: float) -> TriggerOutcome:
+        return TriggerOutcome(exit_code=None, output="partial", timed_out=True)
+
+    suite_dir = tmp_path / "suite"
+    suite_dir.mkdir()
+    settings = Settings(_env_file=None, dashboard_runs_dir=tmp_path / "runs")
+    client = TestClient(create_app(_store(), settings=settings, run_executor=fake_exec))
+    response = client.post("/trigger-run", data={"suite": str(suite_dir)})
+    assert response.status_code == 200
+    assert "timed out" in response.text
+
+
+def test_trigger_form_escapes_hostile_suite_value(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, dashboard_runs_dir=tmp_path / "runs")
+    client = TestClient(create_app(_store(), settings=settings))
+    payload = '"><script>alert(1)</script>'
+    response = client.post("/trigger-run", data={"suite": payload})
+    assert response.status_code == 200
+    assert "<script>alert(1)</script>" not in response.text
+
+
+def test_python_dash_m_entrypoint_runs() -> None:
+    """The trigger form spawns `python -m vitalprobe`; this locks that path in."""
+    completed = subprocess.run(
+        [sys.executable, "-m", "vitalprobe", "--version"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0
+    assert "vitalprobe" in completed.stdout

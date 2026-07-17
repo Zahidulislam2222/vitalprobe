@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     # Localhost by design (BUILD-PLAN §9): the dashboard is local-only, no accounts.
     dashboard_host: str = "127.0.0.1"
     dashboard_port: int = Field(8800, ge=1, le=65535)
+    dashboard_runs_dir: Path = Path("artifacts/dashboard-runs")
+    dashboard_run_timeout_s: float = Field(600, gt=0)
+    dashboard_output_tail_chars: int = Field(8000, ge=1)
+    drafts_dir: Path = Path("artifacts/drafts")
+    # Law content lives in the PRIVATE packs bundle; there is no valid default path here.
+    law_dir: Path | None = None
 
 
 def get_settings() -> Settings:

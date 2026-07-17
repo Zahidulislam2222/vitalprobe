@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active_nav = "trigger" %}
+{% block title %}Trigger run{% endblock %}
+{% block content %}
+<h1>Trigger a run</h1>
+<p class="lede">Runs the existing <code class="mono">vitalprobe run</code> CLI on this machine with <span class="mono">--track</span>, so the result appears under Runs when it finishes.</p>
+
+{% if error %}
+<div class="notice">{{ error }}</div>
+{% endif %}
+
+<form class="picker" method="post" action="/trigger-run">
+  <div>
+    <label for="suite">Suite directory</label>
+    <input type="text" id="suite" name="suite" value="{{ suite }}" placeholder="tests/data/suite" required>
+  </div>
+  <div>
+    <label for="target_url">Target URL (optional)</label>
+    <input type="text" id="target_url" name="target_url" value="{{ target_url }}" placeholder="uses VITALPROBE_TARGET_URL">
+  </div>
+  <button type="submit">Run suite</button>
+</form>
+
+{% if outcome %}
+<h2 class="section-head">Result</h2>
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Outcome</div>
+    <div class="v">
+      {% if outcome.timed_out %}
+      <span class="chip ERROR">timed out</span>
+      {% elif outcome.exit_code == 0 %}
+      <span class="chip PASSED">exit 0 — passed</span>
+      {% elif outcome.exit_code == 1 %}
+      <span class="chip FAILED">exit 1 — failed checks</span>
+      {% else %}
+      <span class="chip ERROR">exit {{ outcome.exit_code }} — config error</span>
+      {% endif %}
+    </div></div>
+  <div class="meta-cell"><div class="k">Output directory</div><div class="v mono">{{ output_dir }}</div></div>
+  <div class="meta-cell"><div class="k">Tracked</div>
+    <div class="v"><a class="run-link" href="/">view runs</a></div></div>
+</div>
+
+{% if outcome.timed_out %}
+<div class="notice">The run exceeded the configured timeout (VITALPROBE_DASHBOARD_RUN_TIMEOUT_S) and was stopped.</div>
+{% endif %}
+
+{% if output_tail %}
+<h2 class="section-head">CLI output</h2>
+<div class="evidence">{{ output_tail }}</div>
+{% endif %}
+{% endif %}
+{% endblock %}

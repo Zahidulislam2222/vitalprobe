@@ -533,7 +533,11 @@ def dashboard() -> None:
         f"VitalProbe dashboard on http://{settings.dashboard_host}:{settings.dashboard_port} "
         "(local only; Ctrl+C to stop)"
     )
-    uvicorn.run(create_app(), host=settings.dashboard_host, port=settings.dashboard_port)
+    uvicorn.run(
+        create_app(settings=settings),
+        host=settings.dashboard_host,
+        port=settings.dashboard_port,
+    )
 
 
 @app.command()

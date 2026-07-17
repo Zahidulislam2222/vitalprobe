@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set active_nav = page_nav %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<h1>{{ page_title }}</h1>
+<p class="lede">This surface is part of the paid tier — the dashboard enforces the same offline license flags as the CLI.</p>
+
+<section class="ledger">
+  <div class="empty">
+    <p><span class="chip ERROR">locked — paid tier</span></p>
+    <p style="margin-top: 12px;">{{ reason }}</p>
+    <p style="margin-top: 12px;">See the <a class="run-link" href="/license">License</a> page for your current entitlements.</p>
+  </div>
+</section>
+{% endblock %}

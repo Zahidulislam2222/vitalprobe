@@ -110,7 +110,7 @@
   form.picker { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 24px; }
   form.picker label { display: block; font-family: var(--mono); font-size: 11px;
     text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 4px; }
-  form.picker select {
+  form.picker select, form.picker input[type="text"] {
     font-family: var(--mono); font-size: 13px; padding: 7px 10px;
     border: 1px solid var(--hairline); background: var(--panel); color: var(--ink);
     border-radius: 2px; min-width: 260px;
@@ -123,6 +123,9 @@
   form.picker button:hover { background: #095548; }
   .notice { border: 1px solid var(--fail); color: var(--fail); background: #f8e9ea;
     padding: 10px 14px; border-radius: 2px; margin-bottom: 20px; font-size: 14px; }
+  .disclaimer { border: 1px solid var(--hairline); background: var(--accent-soft);
+    color: var(--ink); padding: 10px 14px; border-radius: 2px; margin-bottom: 20px;
+    font-size: 14px; font-style: italic; }
   .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 0; border: 1px solid var(--hairline); background: var(--panel);
     border-radius: 2px; margin-bottom: 28px; }
@@ -148,6 +151,9 @@
     <nav class="primary">
       <a href="/" {% if active_nav == "runs" %}aria-current="page"{% endif %}>Runs</a>
       <a href="/compare" {% if active_nav == "compare" %}aria-current="page"{% endif %}>Compare</a>
+      <a href="/trigger-run" {% if active_nav == "trigger" %}aria-current="page"{% endif %}>Trigger</a>
+      <a href="/learning" {% if active_nav == "learning" %}aria-current="page"{% endif %}>Learning</a>
+      <a href="/law" {% if active_nav == "law" %}aria-current="page"{% endif %}>Law</a>
       <a href="/calibration" {% if active_nav == "calibration" %}aria-current="page"{% endif %}>Calibration</a>
       <a href="/license" {% if active_nav == "license" %}aria-current="page"{% endif %}>License</a>
     </nav>

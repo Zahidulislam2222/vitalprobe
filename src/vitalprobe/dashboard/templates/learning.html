@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set active_nav = "learning" %}
+{% block title %}Learning drafts{% endblock %}
+{% block content %}
+<h1>Learning drafts</h1>
+<p class="lede">Adversarial variants drafted from tracked failures by <code class="mono">vitalprobe learn</code>. Drafts stay <span class="mono">status: draft</span> — only human review may move a case into a pack.</p>
+
+<div class="meta-grid">
+  <div class="meta-cell"><div class="k">Drafts directory</div><div class="v mono">{{ drafts_dir }}</div></div>
+  <div class="meta-cell"><div class="k">Draft files</div><div class="v">{{ files | length }}</div></div>
+</div>
+
+{% if not files %}
+<section class="ledger">
+  <div class="empty">
+    No drafts yet. Generate them from a tracked run's failures with
+    <code>vitalprobe learn --from-run &lt;run id&gt; --variants &lt;n&gt; --output {{ drafts_dir }}</code>.
+  </div>
+</section>
+{% endif %}
+
+{% for file in files %}
+<h2 class="section-head">{{ file.name }}</h2>
+{% if file.error %}
+<div class="notice">unreadable draft file: {{ file.error }}</div>
+{% else %}
+<section class="ledger">
+  <table>
+    <thead><tr><th>Case id</th><th>Title</th><th>Status</th><th>Notes</th></tr></thead>
+    <tbody>
+      {% for case in file.cases %}
+      <tr>
+        <td class="mono">{{ case.case_id }}</td>
+        <td>{{ case.title }}</td>
+        <td><span class="chip {% if case.status == 'draft' %}WARN{% else %}PASS{% endif %}">{{ case.status }}</span></td>
+        <td class="muted">{{ case.notes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endfor %}
+{% endblock %}
