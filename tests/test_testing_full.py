@@ -3,8 +3,16 @@
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1]
 SCRIPT = ROOT / "TESTING-FULL.md"
+
+# The founder script references private-repo paths, so it is deliberately not
+# tracked in the public repo; these checks only run where the local copy exists.
+pytestmark = pytest.mark.skipif(
+    not SCRIPT.is_file(), reason="local-only founder acceptance script absent"
+)
 
 
 def test_full_acceptance_script_covers_every_surface() -> None:

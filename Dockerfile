@@ -19,5 +19,8 @@ USER vitalprobe
 WORKDIR /home/vitalprobe
 # Public demo pack so the containerized prospect demo is self-contained
 COPY --chown=vitalprobe:vitalprobe packs ./packs
+# Pre-create as uid 1000: an empty compose named volume mounted here inherits this
+# ownership, so the dashboard (non-root) can create its SQLite tracking DB
+RUN mkdir -p artifacts
 EXPOSE 8800
 CMD ["vitalprobe", "dashboard"]

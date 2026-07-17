@@ -24,6 +24,22 @@ uv run vitalprobe validate --suite packs/emergency-core
 See the [complete quickstart](docs/quickstart.md), [test authoring guide](docs/writing-tests.md),
 and [CI regression workflow](docs/ci.md).
 
+### One-command Docker demo
+
+With Docker installed, a single command starts the local dashboard plus a scripted demo
+health bot and runs everything inside containers — nothing is exposed beyond your own
+machine (the dashboard publishes on `127.0.0.1` only):
+
+```bash
+docker compose up --build
+```
+
+Then open http://127.0.0.1:8800, go to **Trigger run**, and submit
+`packs/emergency-core` against `http://demo-bot:8000/chat` to watch a full audit of the
+intentionally naive demo bot land on the dashboard. Run history persists in a named
+Docker volume across restarts. No accounts, no telemetry, no external assets — the
+demo works fully offline after the image build.
+
 ## Evidence report
 
 ![VitalProbe HTML evidence report](docs/assets/report-preview.png)
