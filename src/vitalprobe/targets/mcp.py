@@ -127,8 +127,10 @@ class McpAdapter:
         if self._worker is None:
             self._ready = asyncio.get_running_loop().create_future()
             self._worker = asyncio.create_task(self._worker_loop(self._ready))
-        assert self._ready is not None
-        await asyncio.shield(self._ready)
+        ready = self._ready
+        if ready is None:
+            raise AdapterError("MCP target worker failed to initialize")
+        await asyncio.shield(ready)
 
     async def aclose(self) -> None:
         if self._worker is not None:
