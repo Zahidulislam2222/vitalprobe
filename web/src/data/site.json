@@ -1,0 +1,259 @@
+{
+  "brand": "VitalProbe",
+  "tagline": "Make failure visible.",
+  "nav": [
+    {
+      "label": "Evidence",
+      "href": "#evidence"
+    },
+    {
+      "label": "How it works",
+      "href": "#workflow"
+    },
+    {
+      "label": "Our approach",
+      "href": "#approach"
+    }
+  ],
+  "hero": {
+    "eyebrow": "THE LOCAL HEALTHCARE AI TESTING TOOLKIT",
+    "lines": [
+      "Pressure-test",
+      "your healthcare",
+      "AI."
+    ],
+    "accent": "Before it matters.",
+    "description": "Find the missed escalation. The unsafe reassurance. The answer that sounds right until it isn't. Turn fictional patient scenarios into evidence you can inspect.",
+    "primary": "Explore the evidence",
+    "secondary": "Run it locally",
+    "note": "Fictional patients. Local execution. No patient uploads.",
+    "visualCaption": "SIGNAL STUDY / 001",
+    "visualNote": "A visualization of synthetic signals, not a medical device."
+  },
+  "proof": [
+    {
+      "value": "25",
+      "label": "fictional scenarios",
+      "detail": "in the public starter suite"
+    },
+    {
+      "value": "182",
+      "label": "automated tests",
+      "detail": "passing at the verified release"
+    },
+    {
+      "value": "0",
+      "label": "patient records",
+      "detail": "used by this demonstration"
+    },
+    {
+      "value": "HTML + JSON",
+      "label": "same evidence",
+      "detail": "read it, inspect it, keep it"
+    }
+  ],
+  "evidence": {
+    "eyebrow": "01 / SEE WHAT THE TOOL ACTUALLY FOUND",
+    "heading": "A good demo should\nshow the bad answers.",
+    "description": "This is a saved run against an intentionally weak, scripted health bot. Browse its actual responses and the checks that caught them. Every conversation is fictional.",
+    "runLabel": "PUBLIC STARTER SUITE",
+    "targetLabel": "SCRIPTED DEMO BOT",
+    "runVerdict": "22 failures worth seeing.",
+    "disclaimer": "These results describe this scripted target only. They are not a measure of model quality or clinical safety.",
+    "categories": [
+      {
+        "id": "all",
+        "label": "All scenarios"
+      },
+      {
+        "id": "emergency",
+        "label": "Emergency"
+      },
+      {
+        "id": "medication",
+        "label": "Medication"
+      },
+      {
+        "id": "crisis",
+        "label": "Mental health"
+      },
+      {
+        "id": "privacy",
+        "label": "Privacy"
+      }
+    ],
+    "scenarioLabel": "FICTIONAL SCENARIO",
+    "responseLabel": "WHAT THE DEMO BOT SAID",
+    "checkLabel": "DETERMINISTIC CHECKS",
+    "fullReport": "Read the complete report",
+    "download": "Download JSON",
+    "empty": "No scenarios in this category."
+  },
+  "workflow": {
+    "eyebrow": "02 / FROM QUESTION TO EVIDENCE",
+    "heading": "Your bot.\nA tougher conversation.",
+    "description": "Keep your target where it is. Bring a local test runner, a draft scenario pack, and a question you need answered.",
+    "steps": [
+      {
+        "number": "01",
+        "title": "Connect your target",
+        "description": "Point the REST adapter at your staging chatbot, or use the MCP adapter. Requests stay explicit and the runner stays on your machine.",
+        "command": "VITALPROBE_TARGET_URL=<your-staging-endpoint>",
+        "signal": "TARGET CONNECTED"
+      },
+      {
+        "number": "02",
+        "title": "Challenge the response",
+        "description": "Run fictional scenarios through deterministic checks. Add a local judge when you choose. Cloud judges are opt-in and use your configuration.",
+        "command": "uv run vitalprobe run --suite packs/emergency-core --output artifacts/audit",
+        "signal": "25 SCENARIOS / DRAFT CONTENT"
+      },
+      {
+        "number": "03",
+        "title": "Inspect what happened",
+        "description": "Open the HTML evidence report. Compare with a baseline, inspect individual checks, and keep local history for the next change.",
+        "command": "artifacts/audit/report.html + run.json",
+        "signal": "EVIDENCE READY TO INSPECT"
+      }
+    ]
+  },
+  "approach": {
+    "eyebrow": "03 / PURPOSEFUL CONSTRAINTS",
+    "heading": "Healthcare is serious.\nSo are the boundaries.",
+    "intro": "A useful test tool should make its limits as clear as its findings.",
+    "principles": [
+      {
+        "icon": "synthetic",
+        "number": "01",
+        "title": "Fictional by design.",
+        "description": "Scenarios describe synthetic people and conversations. This site accepts no patient information and does not connect to your production conversations."
+      },
+      {
+        "icon": "local",
+        "number": "02",
+        "title": "Local by default.",
+        "description": "The CLI, dashboard, reports and history run on your machine. This public site serves a saved demonstration; it does not run a model or collect your responses."
+      },
+      {
+        "icon": "evidence",
+        "number": "03",
+        "title": "Evidence, not a verdict on care.",
+        "description": "Inspect the input, response and check evidence. A passing check is not clinical validation, legal advice or a promise of real-world performance."
+      },
+      {
+        "icon": "human",
+        "number": "04",
+        "title": "Human review stays human.",
+        "description": "Clinical content remains draft. Named clinician and counsel reviews, and human calibration labels, are still open. AI-generated labels do not close those gates."
+      }
+    ]
+  },
+  "gettingStarted": {
+    "eyebrow": "04 / START ON YOUR MACHINE",
+    "heading": "Less guesswork.\nMore evidence.",
+    "description": "The open-source engine, public starter scenarios and basic reports are available to run locally. Licensed extensions and human-reviewed services have separate release gates.",
+    "button": "Get the local toolkit",
+    "source": "Explore the source",
+    "note": "Pre-0.1 source release. Draft scenarios. No payment required for the open-source engine."
+  },
+  "faq": {
+    "eyebrow": "A FEW IMPORTANT ANSWERS",
+    "heading": "Clear before you start.",
+    "items": [
+      {
+        "question": "Is this testing real patients?",
+        "answer": "No. VitalProbe uses fictional scenarios and synthetic conversations. This demonstration contains no patient records and offers no upload or submission flow."
+      },
+      {
+        "question": "What can I connect?",
+        "answer": "The local toolkit supports a configurable REST target adapter and an MCP target adapter. You choose the endpoint, credentials and optional judge on your own machine."
+      },
+      {
+        "question": "Do these results prove my chatbot is safe?",
+        "answer": "No. They show observed behavior on specific synthetic scenarios and configured checks. They are not clinical validation, legal advice, or regulatory approval. Human review and additional testing remain necessary."
+      },
+      {
+        "question": "Where is my data stored?",
+        "answer": "Your local runs, evidence reports and optional SQLite history stay on your machine. Cloud judges only run when you configure and opt into them. This public website serves static assets and a saved synthetic run; its hosting infrastructure may maintain ordinary web request logs."
+      },
+      {
+        "question": "Can I buy a clinician-reviewed report here?",
+        "answer": "No. The clinician-reviewed service is upcoming and requires a named qualified reviewer, an agreement and the relevant approvals. This site has no checkout or live billing."
+      },
+      {
+        "question": "Why does the demo show so many failures?",
+        "answer": "The target is deliberately weak and scripted, so the examples make the testing process visible. The 3 passes and 22 failures describe that demonstration only, not all healthcare AI systems."
+      }
+    ]
+  },
+  "quickstart": {
+    "title": "Start a local audit.",
+    "description": "Use Python with uv, or start the Docker demo. No cloud model or paid API is needed for the scripted example.",
+    "methods": [
+      {
+        "id": "uv",
+        "label": "Python + uv",
+        "commands": [
+          "uv sync --locked --all-extras",
+          "uv run vitalprobe dashboard"
+        ],
+        "note": "Open the local URL printed by the dashboard. Configure your own target separately."
+      },
+      {
+        "id": "docker",
+        "label": "Docker demo",
+        "commands": [
+          "docker compose up --build"
+        ],
+        "note": "The dashboard is published on loopback only; the scripted demo bot stays inside the Compose network."
+      }
+    ],
+    "copy": "Copy commands",
+    "copied": "Copied",
+    "copyFallback": "Clipboard unavailable. Select and copy the commands below.",
+    "docs": "Read the setup documentation",
+    "bootstrap": [
+      "git clone {{repository}} vitalprobe",
+      "cd vitalprobe"
+    ]
+  },
+  "footer": {
+    "description": "Synthetic scenarios. Inspectable evidence. A local-first approach to testing healthcare AI.",
+    "status": "PRE-0.1 / HUMAN REVIEW GATES OPEN",
+    "disclaimer": "Automated testing evidence only. Drafted with AI assistance. No clinical validation, legal advice or regulatory approval.",
+    "source": "Source code",
+    "release": "Release status",
+    "report": "Saved evidence",
+    "top": "Back to top",
+    "copyright": "VitalProbe \u00b7 Apache-2.0 open-source engine"
+  },
+  "ui": {
+    "pauseMotion": "Pause motion",
+    "playMotion": "Play motion",
+    "pauseAnimation": "Pause decorative animation",
+    "playAnimation": "Play decorative animation",
+    "severity": "severity",
+    "savedRun": "saved run",
+    "scenarios": "scenarios",
+    "pass": "pass",
+    "fail": "fail",
+    "errors": "errors",
+    "localWorkspace": "LOCAL WORKSPACE",
+    "workflowFootnote": "YOUR MACHINE. YOUR TARGET. YOUR EVIDENCE.",
+    "onYourMachine": "ON YOUR MACHINE",
+    "heroBottom": "BUILT FOR THE QUESTIONS THAT MATTER",
+    "scrollToInspect": "SCROLL TO INSPECT",
+    "docs": "Docs",
+    "openSourceEngine": "OPEN SOURCE ENGINE",
+    "footerMotto": "FICTIONAL PATIENTS. INSPECTABLE EVIDENCE.",
+    "sourceLanguage": "Python",
+    "sourceLicense": "Apache-2.0"
+  },
+  "seo": {
+    "title": "VitalProbe \u2014 Make failure visible.",
+    "description": "Pressure-test healthcare AI with fictional scenarios. Explore inspectable synthetic evidence, then run VitalProbe locally. Draft content; human review gates remain open.",
+    "ogDescription": "Synthetic patients. Inspectable evidence. A local-first toolkit for pressure-testing healthcare AI.",
+    "noscriptDescription": "A local tool for testing healthcare AI with fictional scenarios.",
+    "noscriptReportLink": "Read the saved synthetic evidence report"
+  }
+}

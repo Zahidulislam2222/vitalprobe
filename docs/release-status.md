@@ -16,8 +16,12 @@ monthly Price validation, cancellation preservation, and paid-through test-licen
 No real Stripe end-to-end result is claimed. See [sandbox acceptance](stripe-sandbox-e2e.md)
 for the remaining real-provider matrix. Offline licenses cannot be revoked instantly.
 
-The [public demonstration](https://vitalprobe.zahidul-islam.com) is a static replay of
-synthetic evidence, verified in desktop and mobile browsers. The local dashboard, billing
+The [public demonstration](https://vitalprobe.zahidul-islam.com) is a static React frontend
+with locally bundled synthetic evidence, a filterable case explorer, setup commands and
+self-hosted decorative media. The frontend has 32 automated regressions and is verified
+in six desktop/tablet/mobile widths, with keyboard and reduced-motion checks and zero
+violations in the configured automated WCAG accessibility scan. The
+[original HTML report](https://vitalprobe.zahidul-islam.com/evidence/) is preserved. The local dashboard, billing
 console, customer inputs, accounts, databases, and private clinical content are not hosted.
 Run your own audits locally with the [quickstart](quickstart.md).
 

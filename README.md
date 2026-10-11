@@ -10,6 +10,10 @@ VitalProbe runs your chatbot, RAG app, or AI agent through synthetic healthcare 
 > entitlements, local-model demo audits, and baseline comparison are implemented. PyPI publishing
 > is intentionally deferred.
 
+Explore the [public synthetic evidence demonstration](https://vitalprobe.zahidul-islam.com),
+or read the [saved HTML report](https://vitalprobe.zahidul-islam.com/evidence/).
+The public site is static; run new audits on your own machine.
+
 ## Quickstart
 
 Until the deferred PyPI release, install from source:
