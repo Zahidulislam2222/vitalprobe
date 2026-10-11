@@ -23,9 +23,12 @@ the rotation. No customer license or production payment was issued.
 
 The [public demonstration](https://vitalprobe.zahidul-islam.com) is a static React frontend
 with locally bundled synthetic evidence, a filterable case explorer, setup commands and
-self-hosted decorative media. The frontend has 32 automated regressions and is verified
-in six desktop/tablet/mobile widths, with keyboard and reduced-motion checks and zero
-violations in the configured automated WCAG accessibility scan. The
+self-hosted decorative media. The website includes dedicated Product, Evidence, Pricing, Documentation and Trust pages.
+Its 39 automated regressions pass. All six pages passed the configured WCAG scan at four
+widths; the homepage also passed six widths. Keyboard navigation, smooth scrolling,
+clipboard feedback, controllable animation, active-transition pause, and live system
+reduced-motion changes were exercised. Planned $50/month Automated and $70/month
+Clinician-Reviewed pricing is informational: public checkout is unavailable. The
 [original HTML report](https://vitalprobe.zahidul-islam.com/evidence/) is preserved. The local dashboard, billing
 console, customer inputs, accounts, databases, and private clinical content are not hosted.
 Run your own audits locally with the [quickstart](quickstart.md).

@@ -1,0 +1,227 @@
+{
+  "pages": {
+    "product": {
+      "path": "/product/",
+      "label": "Product",
+      "eyebrow": "THE TOOLKIT",
+      "heading": "A clearer picture.\nOne conversation at a time.",
+      "description": "Connect a staging target. Challenge it with fictional scenarios. Keep the response, the checks and the evidence together.",
+      "title": "Product \u2014 VitalProbe",
+      "cards": [
+        {
+          "label": "01 / CONNECT",
+          "title": "Meet your target where it is.",
+          "text": "Use a configurable REST or MCP adapter. Credentials belong on your machine, and every request is an explicit part of a test run."
+        },
+        {
+          "label": "02 / CHALLENGE",
+          "title": "Look beyond a fluent answer.",
+          "text": "Deterministic checks inspect responses. Optional local or cloud judges add another signal when you deliberately configure them."
+        },
+        {
+          "label": "03 / UNDERSTAND",
+          "title": "Keep the reasoning visible.",
+          "text": "HTML and JSON reports connect each fictional input to its actual response and check evidence. Compare a baseline and inspect local history."
+        }
+      ]
+    },
+    "explore": {
+      "path": "/explore/",
+      "label": "Evidence",
+      "eyebrow": "THE EVIDENCE EXPLORER",
+      "heading": "Don\u2019t take our word for it.\nInspect the response.",
+      "description": "A saved run. An intentionally weak scripted bot. Twenty-five fictional scenarios, with the actual responses and checks available to inspect.",
+      "title": "Evidence explorer \u2014 VitalProbe",
+      "cards": []
+    },
+    "pricing": {
+      "path": "/pricing/",
+      "label": "Pricing",
+      "eyebrow": "OPEN CORE, CLEAR BOUNDARIES",
+      "heading": "Start locally.\nKnow what comes next.",
+      "description": "The open-source engine is available now. Paid extensions and human-reviewed services are planned separately, with their release gates visible.",
+      "title": "Pricing and availability \u2014 VitalProbe",
+      "cards": []
+    },
+    "docs": {
+      "path": "/docs/",
+      "label": "Docs",
+      "eyebrow": "THE FIELD GUIDE",
+      "heading": "From first command\nto inspectable evidence.",
+      "description": "Start with the scripted local demonstration. Then configure your own staging target using synthetic scenarios only.",
+      "title": "Documentation \u2014 VitalProbe",
+      "cards": [
+        {
+          "label": "01 / INSTALL",
+          "title": "Prepare your local workspace.",
+          "text": "Clone the source and install the locked dependencies with uv, or run the Docker demonstration. No paid model is needed for the scripted example."
+        },
+        {
+          "label": "02 / RUN",
+          "title": "Open the local dashboard.",
+          "text": "Use the URL printed by the dashboard. Keep real patient records and production conversations out of the workflow."
+        },
+        {
+          "label": "03 / INSPECT",
+          "title": "Read what actually happened.",
+          "text": "The report pairs scenario inputs, target responses and check evidence. A passing check is an observation, not a clinical safety verdict."
+        }
+      ]
+    },
+    "trust": {
+      "path": "/trust/",
+      "label": "Trust",
+      "eyebrow": "BOUNDARIES ARE PART OF THE PRODUCT",
+      "heading": "Useful evidence starts\nwith honest limits.",
+      "description": "Fictional patients. Explicit execution. Human review that stays human. Read the architecture and current release status before you rely on the output.",
+      "title": "Trust and limitations \u2014 VitalProbe",
+      "cards": [
+        {
+          "label": "DATA",
+          "title": "No patient upload flow.",
+          "text": "This website serves static assets and a saved fictional run. It has no accounts, upload forms, analytics or customer response database. Hosting may maintain ordinary web request logs."
+        },
+        {
+          "label": "EXECUTION",
+          "title": "Your tests run locally.",
+          "text": "The CLI, dashboard, reports and optional SQLite history run on your machine. Configured target requests are explicit. Cloud judges require your deliberate opt-in."
+        },
+        {
+          "label": "REVIEW",
+          "title": "Draft means draft.",
+          "text": "Clinical content remains draft. Named clinical and legal reviews, language validation and fifty qualified human calibration labels remain open. AI output does not satisfy these gates."
+        }
+      ]
+    }
+  },
+  "motion": {
+    "pause": "Pause site motion",
+    "resume": "Resume site motion",
+    "label": "Motion"
+  },
+  "pricing": {
+    "notice": "Paid checkout is not available. No payment details are collected on this website.",
+    "plans": [
+      {
+        "id": "engine",
+        "name": "Open-source engine",
+        "price": 0,
+        "period": "forever",
+        "status": "Available locally",
+        "description": "The foundation for your first synthetic audit.",
+        "features": [
+          "Deterministic checks",
+          "Public starter scenarios",
+          "Basic HTML + JSON reports",
+          "Bring your own configured judge"
+        ],
+        "action": "Run it locally"
+      },
+      {
+        "id": "automated",
+        "name": "Automated",
+        "price": 50,
+        "period": "month \u00b7 planned",
+        "status": "Not on sale yet",
+        "description": "Licensed extensions for deeper local workflows.",
+        "features": [
+          "Private draft scenario packs",
+          "Informational law mapping",
+          "Learning and report rebranding",
+          "Product-side MCP server"
+        ],
+        "action": "View availability"
+      },
+      {
+        "id": "clinician",
+        "name": "Clinician-Reviewed",
+        "price": 70,
+        "period": "month \u00b7 planned",
+        "status": "Human review gates open",
+        "description": "A planned review service with a named qualified clinician.",
+        "features": [
+          "Automated tier capabilities",
+          "Review of flagged findings",
+          "Named clinician attestation",
+          "Agreement and release prerequisites"
+        ],
+        "action": "View prerequisites"
+      }
+    ],
+    "dialogTitle": "Availability, before payment.",
+    "dialogDescription": "These are planned monthly prices, not a purchase offer. Paid release requires provider acceptance and the applicable review and legal prerequisites. No card entry, subscription or charge is available here.",
+    "checks": [
+      "Real Stripe acceptance is not verified.",
+      "Public billing and legal prerequisites remain open.",
+      "Clinician-reviewed service requires a named qualified reviewer and agreement."
+    ],
+    "close": "Close availability",
+    "link": "Read the trust and release boundaries"
+  },
+  "home": {
+    "eyebrow": "A WORKSPACE FOR THE HARD QUESTIONS",
+    "heading": "Go deeper than the demo.",
+    "description": "Explore the toolkit, inspect the evidence, or get your first local run started.",
+    "links": [
+      {
+        "page": "product",
+        "number": "01",
+        "title": "Understand the toolkit",
+        "text": "Adapters, scenarios and checks. See how the pieces work together."
+      },
+      {
+        "page": "explore",
+        "number": "02",
+        "title": "Inspect the evidence",
+        "text": "Explore the inputs, responses and checks in an actual saved run."
+      },
+      {
+        "page": "docs",
+        "number": "03",
+        "title": "Make your first local run",
+        "text": "Choose Python or Docker and start with the scripted demonstration."
+      }
+    ]
+  },
+  "docs": {
+    "setup": "Choose your setup",
+    "copy": "Copy setup commands",
+    "copied": "Copied",
+    "fallback": "Clipboard unavailable. Select and copy the commands.",
+    "resources": "Keep the reference close.",
+    "links": [
+      {
+        "key": "quickstartUrl",
+        "title": "Full quickstart",
+        "text": "Installation, local setup and the first run."
+      },
+      {
+        "key": "docsUrl",
+        "title": "Technical reference",
+        "text": "Adapters, configuration, reports and examples."
+      },
+      {
+        "key": "releaseUrl",
+        "title": "Release status",
+        "text": "Available capabilities and the remaining gates."
+      }
+    ]
+  },
+  "trust": {
+    "heading": "What the output can tell you.",
+    "items": [
+      {
+        "title": "Observed behavior",
+        "text": "What a configured target said in a specific fictional scenario, and which configured checks passed or failed."
+      },
+      {
+        "title": "Limits of the signal",
+        "text": "This is not clinical validation, legal advice or regulatory approval. Neither a passing report nor an AI review closes the human gates."
+      },
+      {
+        "title": "Website privacy",
+        "text": "No sign-in, tracking cookies, customer forms or payment collection. Static assets are hosted on the existing infrastructure; ordinary request logs may exist."
+      }
+    ]
+  }
+}

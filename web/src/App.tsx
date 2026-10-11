@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { AnimatePresence, motion, useReducedMotion, useScroll, useSpring } from 'motion/react'
+import { AnimatePresence, motion, useScroll, useSpring, useTransform, MotionConfig } from 'motion/react'
 import { ReactLenis, useLenis } from 'lenis/react'
 import {
   ArrowDown, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronDown,
@@ -13,10 +13,15 @@ import { countVerdicts, evidence, filterFindings } from './lib/evidence'
 import type { Finding } from './lib/evidence'
 import { setupCommands } from './lib/setup'
 
+import { website as w, pageFromPath } from './lib/pages'
+import { PageHeading, FeatureCards, HomeLinks, Pricing, DocsSetup, TrustDetails } from './PageSections'
+import { MotionPaused, useMotionPaused, useSystemReducedMotion, useSettledMotion } from './lib/motion'
+
 const config = parseSiteConfig(import.meta.env)
+const page = pageFromPath(window.location.pathname)
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <a className="brand" href="#top" aria-label={`${c.brand} home`}>
+  return <a className="brand" href="/" aria-label={`${c.brand} home`}>
     <span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M2 17h8l4-9 5 17 4-8h7" /></svg></span>
     {!compact && <span>{c.brand}<span className="brand-dot">.</span></span>}
   </a>
@@ -25,8 +30,9 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function Reveal({ children, className = '', delay = 0 }: {
   children: ReactNode; className?: string; delay?: number
 }) {
-  const reduce = useReducedMotion()
-  return <motion.div className={className}
+  const reduce = useMotionPaused()
+  const controls = useSettledMotion(reduce)
+  return <motion.div className={className} animate={controls}
     initial={reduce ? false : { opacity: 0, y: animation.revealDistance }}
     whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.12 }}
     transition={{ duration: reduce ? 0 : animation.revealSeconds, delay, ease: [0.22, 1, 0.36, 1] }}>
@@ -44,8 +50,10 @@ function ArrowLink({ href, children, className = '', external = false }: {
 }
 
 function HeroMedia() {
+  const { scrollY } = useScroll()
+  const parallax = useTransform(scrollY, animation.heroScrollRange, animation.heroTravelRange)
   const video = useRef<HTMLVideoElement>(null)
-  const reduce = useReducedMotion()
+  const reduce = useMotionPaused()
   const [playing, setPlaying] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
 
@@ -58,31 +66,32 @@ function HeroMedia() {
 
   function toggleVideo() {
     const current = video.current
-    if (!current) return
+    if (!current || reduce) return
     if (current.paused) void current.play().catch(() => setUnavailable(true))
     else current.pause()
   }
 
-  return <div className="hero-media">
+  return <motion.div className="hero-media" style={{ y: reduce ? 0 : parallax }}>
     <video ref={video} muted loop playsInline preload="none" poster={siteDefaults.heroPoster}
       src={siteDefaults.heroVideo} aria-hidden="true" tabIndex={-1}
       onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
       onError={() => setUnavailable(true)} />
     <div className="hero-media-shade" />
     <div className="signal-label"><span className="signal-dot" />{c.hero.visualCaption}</div>
-    {!unavailable && <button className="media-control" onClick={toggleVideo}
+    {!unavailable && <button className="media-control" onClick={toggleVideo} disabled={reduce}
       aria-label={playing ? c.ui.pauseAnimation : c.ui.playAnimation}>
       {playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
       <span>{playing ? c.ui.pauseMotion : c.ui.playMotion}</span>
     </button>}
     <p className="visual-note">{c.hero.visualNote}</p>
-  </div>
+  </motion.div>
 }
 
 function FindingDetail({ finding }: { finding: Finding }) {
-  const reduce = useReducedMotion()
+  const reduce = useMotionPaused()
+  const controls = useSettledMotion(reduce, animation.hoverSeconds)
   return <motion.div className="finding-detail" key={finding.id}
-    initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+    initial={reduce ? false : { opacity: 0, y: animation.detailDistance }} animate={controls}
     exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : animation.hoverSeconds }}>
     <div className="finding-topline"><span className={`verdict verdict-${finding.verdict.toLowerCase()}`}>
       {finding.verdict === 'PASS' ? <Check size={12} aria-hidden="true" /> : <X size={12} aria-hidden="true" />}
@@ -106,6 +115,7 @@ function FindingDetail({ finding }: { finding: Finding }) {
 }
 
 function EvidenceExplorer() {
+  const reduce = useMotionPaused()
   const [category, setCategory] = useState('all')
   const [selectedId, setSelectedId] = useState(evidence.results.find((finding) => finding.verdict === 'FAIL')?.id || evidence.results[0].id)
   const filtered = filterFindings(evidence.results, category)
@@ -145,7 +155,7 @@ function EvidenceExplorer() {
           {filtered.length === 0 && <p className="empty-state">{c.evidence.empty}</p>}
         </div><div className="detail-wrapper" data-lenis-prevent>
           <span className="sr-only" role="status" aria-live="polite">{selected?.title}</span>
-          <AnimatePresence mode="wait" initial={false}>{selected && <FindingDetail finding={selected} key={selected.id} />}</AnimatePresence>
+          {reduce ? selected && <FindingDetail finding={selected} key={selected.id} /> : <AnimatePresence mode="wait" initial={false}>{selected && <FindingDetail finding={selected} key={selected.id} />}</AnimatePresence>}
         </div></div>
         <div className="console-footer"><ArrowLink href={config.reportUrl}>{c.evidence.fullReport}</ArrowLink>
           <a href={config.evidenceUrl} download className="json-download"><FileJson2 size={15} aria-hidden="true" />{c.evidence.download}</a></div>
@@ -155,9 +165,17 @@ function EvidenceExplorer() {
   </section>
 }
 
+function WorkflowTerminal({ step }: { step: number }) {
+  const reduce = useMotionPaused()
+  const controls = useSettledMotion(reduce, animation.hoverSeconds)
+  return <motion.div initial={reduce ? false : { opacity: 0, y: animation.terminalDistance }} animate={controls} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : animation.hoverSeconds }}>
+    <code><span>$ </span>{c.workflow.steps[step].command}</code><p><Check size={13} aria-hidden="true" />{c.workflow.steps[step].signal}</p>
+  </motion.div>
+}
+
 function Workflow() {
   const [step, setStep] = useState(0)
-  const reduce = useReducedMotion()
+  const reduce = useMotionPaused()
   return <section className="workflow-section section-pad" id="workflow" aria-labelledby="workflow-title"><div className="container workflow-layout">
     <div><Reveal><p className="eyebrow">{c.workflow.eyebrow}</p><h2 id="workflow-title">{c.workflow.heading}</h2>
       <p className="section-description">{c.workflow.description}</p></Reveal>
@@ -171,9 +189,7 @@ function Workflow() {
         <div className="orbit-node node-three"><ShieldCheck size={21} /></div><div className="orbit-core"><ScanLine size={44} strokeWidth={1.1} /></div>
         <span className="orbit-cross cross-one">+</span><span className="orbit-cross cross-two">+</span></div>
       <div className="workflow-terminal"><div className="terminal-label"><Terminal size={14} aria-hidden="true" />{c.ui.localWorkspace}<span className="terminal-led" /></div>
-        <AnimatePresence mode="wait"><motion.div key={step} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : animation.hoverSeconds }}>
-          <code><span>$ </span>{c.workflow.steps[step].command}</code><p><Check size={13} aria-hidden="true" />{c.workflow.steps[step].signal}</p>
-        </motion.div></AnimatePresence></div>
+        {reduce ? <WorkflowTerminal step={step} /> : <AnimatePresence mode="wait"><WorkflowTerminal step={step} key={step} /></AnimatePresence>}</div>
       <div className="workflow-footnote"><span className="signal-dot" />{c.ui.workflowFootnote}</div>
     </Reveal>
   </div></section>
@@ -232,7 +248,9 @@ function Quickstart({ onClose }: { onClose: () => void }) {
   </dialog>
 }
 
-function Experience() {
+function Experience({ paused, onPause }: { paused: boolean; onPause: () => void }) {
+  const reduce = useMotionPaused()
+  const [availabilityOpen, setAvailabilityOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuToggle = useRef<HTMLButtonElement>(null)
   const [setupOpen, setSetupOpen] = useState(false)
@@ -250,25 +268,24 @@ function Experience() {
   }, [menuOpen])
 
   useEffect(() => {
-    if (setupOpen) lenis?.stop()
+    if (setupOpen || availabilityOpen) lenis?.stop()
     else lenis?.start()
     return () => { lenis?.start() }
-  }, [setupOpen, lenis])
+  }, [setupOpen, availabilityOpen, lenis])
 
   return <>
     <a href="#main" className="skip-link">Skip to content</a>
-    <motion.div className="reading-progress" style={{ scaleX: progress }} aria-hidden="true" />
+    <motion.div className="reading-progress" style={{ scaleX: reduce ? 0 : progress }} aria-hidden="true" />
     <header className="site-header"><div className="container nav-container"><Brand />
       <nav className={`main-nav ${menuOpen ? 'mobile-open' : ''}`} id="main-navigation" aria-label="Main navigation"
         onKeyDown={(event) => { if (event.key === 'Escape') setMenuOpen(false) }}>
-        {c.nav.map((item) => <a href={item.href} key={item.href} onClick={() => setMenuOpen(false)}>{item.label}</a>)}
-        <a href={config.docsUrl} target="_blank" rel="noopener noreferrer">{c.ui.docs}<ArrowUpRight size={13} aria-hidden="true" /></a>
+        {Object.entries(w.pages).map(([id, item]) => <a href={item.path} key={id} aria-current={page === id ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.label}</a>)}
       </nav>
-      <div className="nav-actions"><button className="button button-nav" onClick={() => setSetupOpen(true)}>{c.hero.secondary}<ArrowUpRight size={16} aria-hidden="true" /></button>
+      <div className="nav-actions"><button className="motion-toggle" aria-label={paused ? w.motion.resume : w.motion.pause} aria-pressed={paused} onClick={onPause}>{paused ? <Play size={15} aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}<span>{w.motion.label}</span></button><button className="button button-nav" onClick={() => setSetupOpen(true)}>{c.hero.secondary}<ArrowUpRight size={16} aria-hidden="true" /></button>
         <button ref={menuToggle} className="menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}</button></div>
     </div></header>
-    <main id="main"><section className="hero" id="top" aria-labelledby="hero-title"><div className="hero-grid" aria-hidden="true" /><HeroMedia />
+    <main id="main">{page === 'home' ? <><section className="hero" id="top" aria-labelledby="hero-title"><div className="hero-grid" aria-hidden="true" /><HeroMedia />
       <div className="container hero-content"><Reveal><p className="eyebrow"><span className="live-dot" />{c.hero.eyebrow}</p>
         <h1 id="hero-title">{c.hero.lines.map((line) => <span key={line}>{line}</span>)}<em>{c.hero.accent}</em></h1>
         <p className="hero-description">{c.hero.description}</p><div className="hero-actions"><a className="button button-mint" href="#evidence">{c.hero.primary}<ArrowDown size={17} aria-hidden="true" /></a>
@@ -279,7 +296,7 @@ function Experience() {
     <section className="proof-strip" aria-label="Verified project facts"><div className="container proof-grid">{c.proof.map((fact, index) => <Reveal className="proof-item" key={fact.label} delay={index * animation.staggerSeconds}>
       <strong>{fact.value}</strong><div><span>{fact.label}</span><p>{fact.detail}</p></div>
     </Reveal>)}</div></section>
-    <EvidenceExplorer /><Workflow /><Approach />
+    <HomeLinks /><EvidenceExplorer /><Workflow /><Approach />
     <section className="start-section section-pad" id="start" aria-labelledby="start-title"><div className="container start-layout"><Reveal><p className="eyebrow">{c.gettingStarted.eyebrow}</p><h2 id="start-title">{c.gettingStarted.heading}</h2>
       <p className="section-description">{c.gettingStarted.description}</p><div className="start-actions"><button className="button button-mint" onClick={() => setSetupOpen(true)}>{c.gettingStarted.button}<ArrowUpRight size={18} aria-hidden="true" /></button>
         <ArrowLink href={config.repositoryUrl} external>{c.gettingStarted.source}</ArrowLink></div><p className="start-note">{c.gettingStarted.note}</p></Reveal>
@@ -289,10 +306,18 @@ function Experience() {
     <section className="faq-section section-pad" aria-labelledby="faq-title"><div className="container faq-layout"><Reveal><p className="eyebrow">{c.faq.eyebrow}</p><h2 id="faq-title">{c.faq.heading}</h2></Reveal>
       <div className="faq-list">{c.faq.items.map((item) => <details className="faq-item" key={item.question}><summary>{item.question}<ChevronDown size={19} aria-hidden="true" /></summary><p>{item.answer}</p></details>)}</div>
     </div></section>
+    </> : page === 'missing' ? <section className="page-heading" id="top"><div className="container"><h1>404</h1><a className="button button-mint" href="/">{c.brand}</a></div></section> : <>
+      <PageHeading page={page} />
+      {page === 'product' && <><FeatureCards page={page} /><Workflow /><HomeLinks /></>}
+      {page === 'explore' && <EvidenceExplorer />}
+      {page === 'pricing' && <Pricing onSetup={() => setSetupOpen(true)} onModal={setAvailabilityOpen} />}
+      {page === 'docs' && <><DocsSetup /><FeatureCards page={page} /></>}
+      {page === 'trust' && <><FeatureCards page={page} /><Approach /><TrustDetails /></>}
+    </>}
     </main>
     <footer className="site-footer"><div className="container"><div className="footer-top"><Brand /><p>{c.footer.description}</p><a href="#top" className="back-to-top">{c.footer.top}<ArrowUpRight size={17} aria-hidden="true" /></a></div>
       <div className="footer-statement" aria-hidden="true">{c.tagline}</div><div className="footer-bottom"><div><p className="footer-status"><span />{c.footer.status}</p><p className="footer-disclaimer">{c.footer.disclaimer}</p></div>
-        <nav aria-label="Footer navigation"><ArrowLink href={config.repositoryUrl} external>{c.footer.source}</ArrowLink><ArrowLink href={config.releaseUrl} external>{c.footer.release}</ArrowLink><ArrowLink href={config.reportUrl}>{c.footer.report}</ArrowLink></nav></div>
+        <nav aria-label="Footer navigation">{Object.values(w.pages).map((item) => <a href={item.path} key={item.path}>{item.label}</a>)}<ArrowLink href={config.repositoryUrl} external>{c.footer.source}</ArrowLink><ArrowLink href={config.releaseUrl} external>{c.footer.release}</ArrowLink><ArrowLink href={config.reportUrl}>{c.footer.report}</ArrowLink></nav></div>
       <div className="copyright">{c.footer.copyright}<span>{c.ui.footerMotto}</span></div>
     </div></footer>
     {setupOpen && <Quickstart onClose={() => setSetupOpen(false)} />}
@@ -300,7 +325,11 @@ function Experience() {
 }
 
 export default function App() {
-  const reduce = useReducedMotion()
-  return <ReactLenis root options={{ autoRaf: true, lerp: animation.scrollLerp, smoothWheel: !reduce,
-    anchors: { duration: reduce ? 0 : animation.anchorSeconds } }}><Experience /></ReactLenis>
+  const preference = useSystemReducedMotion()
+  const [paused, setPaused] = useState(false)
+  const reduce = preference || paused
+  return <MotionPaused value={paused}><MotionConfig reducedMotion={reduce ? 'always' : 'never'}><div className={reduce ? 'motion-paused' : 'motion-enabled'}>
+    <ReactLenis root options={{ autoRaf: true, lerp: animation.scrollLerp, smoothWheel: !reduce,
+      anchors: { duration: reduce ? 0 : animation.anchorSeconds } }}><Experience paused={paused} onPause={() => setPaused(!paused)} /></ReactLenis>
+  </div></MotionConfig></MotionPaused>
 }

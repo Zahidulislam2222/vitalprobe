@@ -33,3 +33,14 @@ no key or generation API is bundled in the website. See [asset provenance](ASSET
 The site respects reduced motion, keeps decorative video paused until requested, provides
 a pause/play control, and uses keyboard-operable filters, native FAQ disclosure and a
 native setup dialog. Human clinical, counsel and calibration gates remain OPEN.
+
+Dedicated static routes: `/product/`, `/explore/`, `/pricing/`, `/docs/`, and `/trust/`.
+Vite emits an HTML entry for each route with a unique title/description and a no-JavaScript
+navigation fallback. Page copy, planned prices and route definitions are maintained in
+`src/data/pages.json` and validated in `src/lib/pages.ts`. The original `/evidence/`
+report remains unchanged. Planned prices are informational and separate from the local
+sandbox settings; the website has no checkout or payment collection.
+
+The header motion control pauses site animation and decorative video without storing a
+preference. Reduced-motion users start with spatial and continuous animation disabled.
+Scroll parallax, instrument/orbit animation and hover states supplement section reveals.

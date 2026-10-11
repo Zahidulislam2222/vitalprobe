@@ -50,6 +50,13 @@ export function parseDevConfig(env: Record<string, string | undefined>) {
 }
 
 export const animation = {
+  reducedMotionQuery: '(prefers-reduced-motion: reduce)',
+  heroScrollRange: [0, 850],
+  heroTravelRange: [0, 110],
+  cardLift: -6,
+  detailDistance: 8,
+  terminalDistance: 6,
+  entranceDistance: 20,
   revealSeconds: 0.65,
   revealDistance: 24,
   staggerSeconds: 0.08,
