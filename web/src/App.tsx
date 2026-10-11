@@ -5,7 +5,7 @@ import { ReactLenis, useLenis } from 'lenis/react'
 import {
   ArrowDown, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronDown,
   ChevronRight, Code2, Copy, FileJson2, Fingerprint, FlaskConical,
-  LockKeyhole, Menu, Pause, Play, ScanLine, ShieldCheck, Terminal, X, XCircle,
+  LockKeyhole, Menu, ScanLine, ShieldCheck, Terminal, X, XCircle,
 } from 'lucide-react'
 import { animation, parseSiteConfig, siteDefaults } from './config'
 import { content as c } from './lib/content'
@@ -15,7 +15,7 @@ import { setupCommands } from './lib/setup'
 
 import { website as w, pageFromPath } from './lib/pages'
 import { PageHeading, FeatureCards, HomeLinks, Pricing, DocsSetup, TrustDetails } from './PageSections'
-import { MotionPaused, useMotionPaused, useSystemReducedMotion, useSettledMotion } from './lib/motion'
+import { useSystemReducedMotion, useSettledMotion } from './lib/motion'
 
 const config = parseSiteConfig(import.meta.env)
 const page = pageFromPath(window.location.pathname)
@@ -30,7 +30,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function Reveal({ children, className = '', delay = 0 }: {
   children: ReactNode; className?: string; delay?: number
 }) {
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   const controls = useSettledMotion(reduce)
   return <motion.div className={className} animate={controls}
     initial={reduce ? false : { opacity: 0, y: animation.revealDistance }}
@@ -53,42 +53,29 @@ function HeroMedia() {
   const { scrollY } = useScroll()
   const parallax = useTransform(scrollY, animation.heroScrollRange, animation.heroTravelRange)
   const video = useRef<HTMLVideoElement>(null)
-  const reduce = useMotionPaused()
-  const [playing, setPlaying] = useState(false)
-  const [unavailable, setUnavailable] = useState(false)
+  const reduce = useSystemReducedMotion()
 
   useEffect(() => {
     const current = video.current
     if (!current) return
-    // The detailed still remains the primary artwork. Playback is a deliberate choice.
     if (reduce) current.pause()
+    else void current.play().catch(() => {
+      // Browsers may block autoplay; the poster remains visible.
+    })
+    return () => current.pause()
   }, [reduce])
 
-  function toggleVideo() {
-    const current = video.current
-    if (!current || reduce) return
-    if (current.paused) void current.play().catch(() => setUnavailable(true))
-    else current.pause()
-  }
-
   return <motion.div className="hero-media" style={{ y: reduce ? 0 : parallax }}>
-    <video ref={video} muted loop playsInline preload="none" poster={siteDefaults.heroPoster}
-      src={siteDefaults.heroVideo} aria-hidden="true" tabIndex={-1}
-      onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-      onError={() => setUnavailable(true)} />
+    <video ref={video} autoPlay={!reduce} muted loop playsInline preload="none" poster={siteDefaults.heroPoster}
+      src={siteDefaults.heroVideo} aria-hidden="true" tabIndex={-1} />
     <div className="hero-media-shade" />
     <div className="signal-label"><span className="signal-dot" />{c.hero.visualCaption}</div>
-    {!unavailable && <button className="media-control" onClick={toggleVideo} disabled={reduce}
-      aria-label={playing ? c.ui.pauseAnimation : c.ui.playAnimation}>
-      {playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
-      <span>{playing ? c.ui.pauseMotion : c.ui.playMotion}</span>
-    </button>}
     <p className="visual-note">{c.hero.visualNote}</p>
   </motion.div>
 }
 
 function FindingDetail({ finding }: { finding: Finding }) {
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   const controls = useSettledMotion(reduce, animation.hoverSeconds)
   return <motion.div className="finding-detail" key={finding.id}
     initial={reduce ? false : { opacity: 0, y: animation.detailDistance }} animate={controls}
@@ -115,7 +102,7 @@ function FindingDetail({ finding }: { finding: Finding }) {
 }
 
 function EvidenceExplorer() {
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   const [category, setCategory] = useState('all')
   const [selectedId, setSelectedId] = useState(evidence.results.find((finding) => finding.verdict === 'FAIL')?.id || evidence.results[0].id)
   const filtered = filterFindings(evidence.results, category)
@@ -166,7 +153,7 @@ function EvidenceExplorer() {
 }
 
 function WorkflowTerminal({ step }: { step: number }) {
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   const controls = useSettledMotion(reduce, animation.hoverSeconds)
   return <motion.div initial={reduce ? false : { opacity: 0, y: animation.terminalDistance }} animate={controls} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : animation.hoverSeconds }}>
     <code><span>$ </span>{c.workflow.steps[step].command}</code><p><Check size={13} aria-hidden="true" />{c.workflow.steps[step].signal}</p>
@@ -175,7 +162,7 @@ function WorkflowTerminal({ step }: { step: number }) {
 
 function Workflow() {
   const [step, setStep] = useState(0)
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   return <section className="workflow-section section-pad" id="workflow" aria-labelledby="workflow-title"><div className="container workflow-layout">
     <div><Reveal><p className="eyebrow">{c.workflow.eyebrow}</p><h2 id="workflow-title">{c.workflow.heading}</h2>
       <p className="section-description">{c.workflow.description}</p></Reveal>
@@ -248,8 +235,8 @@ function Quickstart({ onClose }: { onClose: () => void }) {
   </dialog>
 }
 
-function Experience({ paused, onPause }: { paused: boolean; onPause: () => void }) {
-  const reduce = useMotionPaused()
+function Experience() {
+  const reduce = useSystemReducedMotion()
   const [availabilityOpen, setAvailabilityOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuToggle = useRef<HTMLButtonElement>(null)
@@ -281,7 +268,7 @@ function Experience({ paused, onPause }: { paused: boolean; onPause: () => void 
         onKeyDown={(event) => { if (event.key === 'Escape') setMenuOpen(false) }}>
         {Object.entries(w.pages).map(([id, item]) => <a href={item.path} key={id} aria-current={page === id ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{item.label}</a>)}
       </nav>
-      <div className="nav-actions"><button className="motion-toggle" aria-label={paused ? w.motion.resume : w.motion.pause} aria-pressed={paused} onClick={onPause}>{paused ? <Play size={15} aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}<span>{w.motion.label}</span></button><button className="button button-nav" onClick={() => setSetupOpen(true)}>{c.hero.secondary}<ArrowUpRight size={16} aria-hidden="true" /></button>
+      <div className="nav-actions"><button className="button button-nav" onClick={() => setSetupOpen(true)}>{c.hero.secondary}<ArrowUpRight size={16} aria-hidden="true" /></button>
         <button ref={menuToggle} className="menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}</button></div>
     </div></header>
@@ -325,11 +312,9 @@ function Experience({ paused, onPause }: { paused: boolean; onPause: () => void 
 }
 
 export default function App() {
-  const preference = useSystemReducedMotion()
-  const [paused, setPaused] = useState(false)
-  const reduce = preference || paused
-  return <MotionPaused value={paused}><MotionConfig reducedMotion={reduce ? 'always' : 'never'}><div className={reduce ? 'motion-paused' : 'motion-enabled'}>
+  const reduce = useSystemReducedMotion()
+  return <MotionConfig reducedMotion={reduce ? 'always' : 'never'}><div className={reduce ? 'motion-paused' : 'motion-enabled'}>
     <ReactLenis root options={{ autoRaf: true, lerp: animation.scrollLerp, smoothWheel: !reduce,
-      anchors: { duration: reduce ? 0 : animation.anchorSeconds } }}><Experience paused={paused} onPause={() => setPaused(!paused)} /></ReactLenis>
-  </div></MotionConfig></MotionPaused>
+      anchors: { duration: reduce ? 0 : animation.anchorSeconds } }}><Experience /></ReactLenis>
+  </div></MotionConfig>
 }

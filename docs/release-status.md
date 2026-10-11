@@ -26,8 +26,8 @@ with locally bundled synthetic evidence, a filterable case explorer, setup comma
 self-hosted decorative media. The website includes dedicated Product, Evidence, Pricing, Documentation and Trust pages.
 Its 39 automated regressions pass. All six pages passed the configured WCAG scan at four
 widths; the homepage also passed six widths. Keyboard navigation, smooth scrolling,
-clipboard feedback, controllable animation, active-transition pause, and live system
-reduced-motion changes were exercised. Planned $50/month Automated and $70/month
+clipboard feedback, automatic muted hero playback, and live system reduced-motion
+changes were exercised. Motion and playback buttons were removed at the founder’s request. Planned $50/month Automated and $70/month
 Clinician-Reviewed pricing is informational: public checkout is unavailable. The
 [original HTML report](https://vitalprobe.zahidul-islam.com/evidence/) is preserved. The local dashboard, billing
 console, customer inputs, accounts, databases, and private clinical content are not hosted.

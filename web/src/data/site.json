@@ -228,10 +228,6 @@
     "copyright": "VitalProbe \u00b7 Apache-2.0 open-source engine"
   },
   "ui": {
-    "pauseMotion": "Pause motion",
-    "playMotion": "Play motion",
-    "pauseAnimation": "Pause decorative animation",
-    "playAnimation": "Play decorative animation",
     "severity": "severity",
     "savedRun": "saved run",
     "scenarios": "scenarios",

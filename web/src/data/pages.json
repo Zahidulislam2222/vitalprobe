@@ -94,11 +94,6 @@
       ]
     }
   },
-  "motion": {
-    "pause": "Pause site motion",
-    "resume": "Resume site motion",
-    "label": "Motion"
-  },
   "pricing": {
     "notice": "Paid checkout is not available. No payment details are collected on this website.",
     "plans": [

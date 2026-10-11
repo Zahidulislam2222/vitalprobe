@@ -6,19 +6,19 @@ import type { PageId } from './lib/pages'
 import { animation, parseSiteConfig } from './config'
 import { setupCommands } from './lib/setup'
 import { content as c } from './lib/content'
-import { useMotionPaused, useSettledMotion } from './lib/motion'
+import { useSystemReducedMotion, useSettledMotion } from './lib/motion'
 
 const config = parseSiteConfig(import.meta.env)
 
 export function PageHeading({ page }: { page: PageId }) {
   const data = w.pages[page]
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   const controls = useSettledMotion(reduce, animation.revealSeconds)
   return <section className="page-heading" id="top"><div className="container"><a className="page-breadcrumb" href="/">{c.brand}<span>/ {data.label}</span></a>
     <p className="eyebrow">{data.eyebrow}</p><motion.h1 initial={reduce ? false : { opacity: 0, y: animation.entranceDistance }} animate={controls} transition={{ duration: reduce ? 0 : animation.revealSeconds }}>{data.heading}</motion.h1><p>{data.description}</p><span className="heading-index" aria-hidden="true">0{Object.keys(w.pages).indexOf(page) + 1}</span></div></section>
 }
 function FeatureCard({ card, index, page }: { card: { label: string; title: string; text: string }; index: number; page: PageId }) {
-  const reduce = useMotionPaused()
+  const reduce = useSystemReducedMotion()
   const controls = useSettledMotion(reduce)
   return <motion.article className="feature-card" initial={reduce ? false : { opacity: 0, y: animation.revealDistance }} animate={controls} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: reduce ? 0 : animation.revealSeconds, delay: reduce ? 0 : index * animation.staggerSeconds }} whileHover={reduce ? undefined : { y: animation.cardLift }}><span className="mini-label">{card.label}</span><div className="feature-glyph" aria-hidden="true">{page === 'trust' ? <LockKeyhole /> : <Code2 />}</div><h2>{card.title}</h2><p>{card.text}</p></motion.article>
 }

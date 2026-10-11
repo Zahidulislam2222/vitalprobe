@@ -30,8 +30,8 @@ The still was made using the built-in image generation tool, then optimized with
 FFmpeg. Video authoring uses an explicitly approved, separate OpenRouter request;
 no key or generation API is bundled in the website. See [asset provenance](ASSETS.md).
 
-The site respects reduced motion, keeps decorative video paused until requested, provides
-a pause/play control, and uses keyboard-operable filters, native FAQ disclosure and a
+The decorative hero video automatically plays muted and loops inline. System reduced-motion
+settings stop playback and spatial/continuous animation. The site uses keyboard-operable filters, native FAQ disclosure and a
 native setup dialog. Human clinical, counsel and calibration gates remain OPEN.
 
 Dedicated static routes: `/product/`, `/explore/`, `/pricing/`, `/docs/`, and `/trust/`.
@@ -41,6 +41,6 @@ navigation fallback. Page copy, planned prices and route definitions are maintai
 report remains unchanged. Planned prices are informational and separate from the local
 sandbox settings; the website has no checkout or payment collection.
 
-The header motion control pauses site animation and decorative video without storing a
-preference. Reduced-motion users start with spatial and continuous animation disabled.
+There are no motion or playback buttons. Live system preference changes stop or resume
+animation automatically; browsers that block autoplay retain the poster image.
 Scroll parallax, instrument/orbit animation and hover states supplement section reveals.
