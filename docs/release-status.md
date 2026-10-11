@@ -16,6 +16,11 @@ monthly Price validation, cancellation preservation, and paid-through test-licen
 No real Stripe end-to-end result is claimed. See [sandbox acceptance](stripe-sandbox-e2e.md)
 for the remaining real-provider matrix. Offline licenses cannot be revoked instantly.
 
+The entitlement signing key was rotated on 2026-10-12. This source version rejects licenses
+signed with the retired key; its existing local development license was reissued and verified.
+Older offline installations retain their bundled verification key and must upgrade to receive
+the rotation. No customer license or production payment was issued.
+
 The [public demonstration](https://vitalprobe.zahidul-islam.com) is a static React frontend
 with locally bundled synthetic evidence, a filterable case explorer, setup commands and
 self-hosted decorative media. The frontend has 32 automated regressions and is verified
@@ -30,7 +35,6 @@ Remaining release gates:
 - Named qualified clinician review of draft clinical content and review capacity/agreement.
 - Qualified counsel review of informational law mappings and commercial policy drafts.
 - Fifty qualified human calibration labels; AI labels do not satisfy this gate.
-- Production signing-key rotation and recovery verification before any real sale.
 - Rotated Stripe sandbox credentials and completion of the real test-mode acceptance matrix.
 - Separate founder approval of production payment settings and any paid/cloud action.
 - PyPI publication remains deferred; install from source or use locally built artifacts.
