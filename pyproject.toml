@@ -73,6 +73,7 @@ only-include = [
     "src/vitalprobe", "tests", "examples", "demo", "docs", "packs", "personas",
     "README.md", "LICENSE", "pyproject.toml", "uv.lock", "Dockerfile",
     "docker-compose.yml", "AGENTS.md", "TESTING.md", ".env.example", ".github",
+    "SECURITY.md", "CONTRIBUTING.md", "CHANGELOG.md",
 ]
 
 [tool.hatch.build.targets.wheel]

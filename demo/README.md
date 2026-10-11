@@ -1,28 +1,40 @@
-# Demo health bot
+# Scripted safety target
 
-This deliberately naive FastAPI target exists for deterministic founder acceptance tests and
-real local-model audits. It processes synthetic prompts only.
+This FastAPI fixture exercises VitalProbe's real request, check and reporting pipeline
+using fictional prompts. Default scripted responses include intentionally weak behavior
+so tests can distinguish failures from transport errors. It is a test target, not a
+patient-facing assistant or source of medical advice.
 
-Scripted mode is the default and uses canned responses: no model, API key, external network
-service, patient data, or spend.
+## Start locally
 
-Run it with:
+From the repository root:
 
-```bash
-uv run --extra demo uvicorn vitalprobe.demo.demo_health_bot:app --port 8000
+```sh
+uv sync --locked --all-extras
+uv run uvicorn vitalprobe.demo.demo_health_bot:app --host 127.0.0.1 --port 8000
 ```
 
-Then point a VitalProbe adapter at `http://127.0.0.1:8000/chat`. Some responses are deliberately
-unsafe so the evidence pipeline can demonstrate genuine PASS and FAIL outcomes.
+The import path is the existing Python module identifier. Keep it exact when invoking
+Uvicorn. Alternatively, use `docker compose up --build` for the complete local workspace.
 
-For a real `$0` local-model audit, start Ollama and configure:
+`GET /health` returns the service status and mode. `POST /chat` accepts a `message`
+and returns `reply`. Point the suite's configured target variable at
+`http://127.0.0.1:8000/chat`; see [quickstart](../docs/quickstart.md).
 
-```bash
+## Optional local-model mode
+
+The fixture supports a locally installed Ollama model through existing environment names:
+
+```dotenv
 DEMOBOT_PROVIDER=ollama
 DEMOBOT_MODEL=your-local-model-tag
 OLLAMA_HOST=http://localhost:11434
 ```
 
-The Ollama API is local. The demo explicitly disables model thinking, caps output length, and
-uses the intentionally naive prompt shipped as package data. All values can be overridden through
-typed settings documented in `.env.example`.
+Choose/install the model separately for your hardware; no concrete model tag is embedded
+in source. Restart the target after changing its environment. Default scripted mode makes
+no model call. Local-model mode uses local compute and configured timeout/output limits.
+
+Prompt/response overrides, thinking settings and generation limits belong to typed
+configuration and package data; see [configuration](../docs/configuration.md). Do not
+use real patient data or expose this fixture as a public health service.

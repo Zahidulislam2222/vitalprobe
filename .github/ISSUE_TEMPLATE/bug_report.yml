@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible defect using fictional data.
+title: "Bug: "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include secrets, patient data, production conversations or private content. Report security issues through SECURITY.md."
+  - type: input
+    id: version
+    attributes:
+      label: Version and environment
+      description: Source commit, OS and relevant Python/Node version.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Fictional reproduction
+      description: Minimal steps or command, expected behavior and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Relevant error text or screenshot with credentials and private details removed.

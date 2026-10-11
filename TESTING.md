@@ -1,74 +1,75 @@
-# Founder acceptance testing
+# Testing and acceptance
 
-This is the zero-spend acceptance gate. Do not configure cloud keys or run live judges here.
+Use fictional data, local targets and `VITALPROBE_JUDGE=none` for the zero-provider-spend
+workflow. Automated tests use mocked judge/payment responses; passing them is distinct
+from real provider acceptance and qualified human review.
 
-## 1. Install and verify
+## Python gates
 
 ```bash
-uv sync --all-extras --locked
+uv sync --locked --all-extras
 uv run ruff check .
-uv run mypy src
-uv run pytest -q
-uv run vitalprobe --version
+uv run mypy
+uv run pytest
+uvx --from bandit==1.9.4 bandit -q -ll -r src
+uv build
+uvx --from twine twine check dist/*
 ```
 
-Expected: all quality gates pass.
+Strict mypy covers configured source, tests and examples. The suite covers deterministic
+checks, adapters, judges, redaction, reports, comparison, history, simulator, calibration,
+local generation, entitlements, MCP, dashboard, isolated payment behavior, compliance
+and configuration hygiene. See the [CI workflow](.github/workflows/ci.yml) for locked
+dependency audits, Semgrep, Gitleaks and isolated wheel installation.
 
-## 2. Start the scripted demo target
+## Frontend gates
 
-Terminal A:
+In `web/` with Node 24:
 
 ```bash
-uv run --extra demo uvicorn vitalprobe.demo.demo_health_bot:app --port 8000
+npm ci --ignore-scripts --no-fund
+npm run typecheck
+npm run lint
+npm test
+npm audit --audit-level=low
+npm run build
 ```
 
-Open `http://127.0.0.1:8000/health`. Expected: `{"status":"ok","mode":"scripted"}`.
+Vitest covers evidence/configuration boundaries and route/content invariants.
+Browser verification additionally exercises every direct route, keyboard
+navigation, mobile layouts, evidence filtering, clipboard feedback, autoplay fallback,
+and initial/changing reduced-motion preferences. Automated accessibility scans do not
+replace keyboard and visual inspection or establish full standards conformance.
 
-## 3. Run the deterministic suite
+## Exercise the real flow
 
-Copy `tests/data/suite/adapter.default.yaml`, set its `url` to
-`http://127.0.0.1:8000/chat`, and remove `url_env`. Then run:
+Follow [quickstart](docs/quickstart.md), not just unit tests. Confirm target health,
+validate the starter, run all 25 scenarios, inspect canonical JSON/HTML, compare a later
+run, and inspect tracked history. The scripted target deliberately produces failures;
+verify `counts.error == 0` to distinguish observed behavior from transport failures.
+Test the negative CI artifact gate as well as a passing artifact.
 
-```bash
-uv run vitalprobe validate --suite tests/data/suite
-uv run vitalprobe run --suite tests/data/suite --output artifacts/founder-run
-```
+For local dashboard acceptance, verify loopback binding and safe argument construction;
+exercise report/history views and an actual triggered run. Without a valid license,
+`vitalprobe license check mcp_server` must refuse paid access. Model-dependent or
+licensed flows require their configured local model/content and their own evidence.
 
-Inspect `run.json` and `report.html`. Confirm PASS/WARN/FAIL evidence, redacted values, tier
-language, and clean print preview.
+## Payment and review gates
 
-## 4. Verify memory
+[Stripe sandbox acceptance](docs/stripe-sandbox-e2e.md) is a separate local test-mode
+matrix. Mock tests do not establish real checkout, webhook, refund or dispute results.
+Do not use live keys or payment methods. Public billing remains unavailable.
 
-Run the same command twice with `--track`, then:
+Clinical review, counsel review and 50 qualified human calibration labels remain open.
+`validate --release` must reject draft clinical cases. AI-generated labels and a green
+build cannot close a human gate.
 
-```bash
-uv run vitalprobe history --target http://127.0.0.1:8000/chat
-```
+## Recorded baseline
 
-Expected: two remembered runs and regression counts.
+On 2026-10-12 the runtime release passed 182 Python tests, strict typing across 86
+files, 39 frontend tests, lint, package validation and security checks. Its exact source
+commit and CI evidence are linked in [release status](docs/release-status.md). Re-run
+checks for a new commit; do not treat these counts as perpetual evidence.
 
-## 5. Verify entitlements
-
-```bash
-uv run vitalprobe license show
-uv run vitalprobe license check mcp_server
-```
-
-Expected without a license: free tier remains usable; the paid feature check exits 2 with a
-clear upgrade message. Do not share or move the founder signing key.
-
-## 6. Verify mocked judge engine
-
-```bash
-uv run pytest tests/test_judges.py -q
-```
-
-Expected: mocked OpenAI and Anthropic judges identify the seeded subtle failure; mocked Ollama
-recovers from two invalid JSON responses and fails cleanly after three. These tests make no
-network calls and spend nothing.
-
-## Acceptance record
-
-Record date, machine, commands, results, report review notes, and either ACCEPTED or REJECTED
-in `BUILD-LOG.md`. Live cloud judge calls, model downloads, publication, and live audits remain
-blocked until the founder marks this gate ACCEPTED.
+Manual operator tooling belongs in an ignored local test folder; the genuine tracked
+`tests/` suite is CI tooling and remains committed. Retain manual scripts for reruns.

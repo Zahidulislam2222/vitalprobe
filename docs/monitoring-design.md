@@ -1,48 +1,55 @@
-# Production-trace sampled evaluation — DESIGN ONLY
+# Future customer-controlled monitoring
 
-Status: **design document, deliberately not implemented** (BUILD-PLAN M8 step 5; the
-Not-building list excludes production-conversation storage and hosted infrastructure).
-Nothing in this document exists in code. It records the intended shape of a future
-monitoring tier so the design survives until that tier is opened.
+Status: proposal only. The implemented toolkit evaluates fictional scenarios locally.
+It does not ingest real production conversations, send telemetry or host a monitoring
+service. Implementing this proposal would cross the existing data/legal boundary and
+requires a separate scope decision, qualified legal review and privacy prerequisites.
 
-## Problem
+## Purpose and proposed flow
 
-Pre-release suites test synthetic scenarios. Once a bot is live, its real conversations
-drift away from the test distribution (new prompts, new model versions, new retrieval
-data). Teams want a signal that safety behavior is holding in production without paying
-for full evaluation of every conversation and without VitalProbe ever hosting PHI.
+Production distributions can differ from a fictional test suite after a model,
+retrieval source or policy changes. A future customer-controlled evaluation system
+could identify shifts without centralizing conversation content in the vendor's service.
 
-## Intended architecture (three cost layers)
+A candidate design runs inside the customer's environment:
 
-1. **Heuristics — 100% of traffic.** Deterministic checks (the existing evaluator
-   registry) run on every sampled-in conversation turn: crisis-pattern presence,
-   forbidden-phrase hits, disclosure markers. Cheap, local, no LLM.
-2. **LLM judge — 10–20% sample.** A configured judge (local by default) scores a random
-   sample plus every heuristic-flagged conversation against the same rubrics used in
-   pre-release runs. Sampling rate is configuration, never code.
-3. **Human labels — periodic.** A small periodic batch goes to a human reviewer using the
-   existing calibration flow (labels CSV → agreement metrics), keeping the judge honest
-   over time.
+1. Customer-defined eligibility and retention rules select permitted inputs.
+2. Deterministic checks inspect eligible traffic locally.
+3. An approved sample and flagged cases receive configured local semantic judging.
+4. Authorized human reviewers label a bounded set and assess judge agreement.
+5. Approved aggregate metrics support trends and incident investigation.
 
-## Data-protection posture (binding for any future implementation)
+Sample rates, cost ceilings, retention, access, encryption, model choice and confidence
+thresholds must be owned by validated configuration. Do not inherit an illustrative
+sampling percentage as a production default.
 
-- Runs INSIDE the customer's infrastructure (their CI/cron, their storage). VitalProbe
-  ships the tool; it never receives conversations. The no-PHI architecture statement in
-  BUILD-PLAN §7 must remain true.
-- Redaction before judging: the customer configures PII scrubbing on ingest; raw text
-  never leaves their boundary.
-- Only aggregate verdicts/metrics would ever be exportable, and only by customer action.
+## Data and legal entry requirements
 
-## Interfaces it would reuse (nothing new invented)
+Real health conversations remain outside current scope, even when processed on a
+customer machine. Scrubbing alone does not establish anonymization. Before any such
+implementation, determine legal roles, lawful basis, HIPAA applicability where relevant,
+contracts, residency, retention/deletion, reviewer access, subprocessor behavior and
+incident obligations. See [privacy](privacy.md) and [legal responsibilities](legal.md).
 
-- Evaluators: `vitalprobe.evaluators.CHECKS` unchanged.
-- Judges: the existing judge backends + rubrics, judge choice by settings.
-- Calibration: `vitalprobe calibrate` artifacts for the human-label layer.
-- Reporting: RunResult-shaped periodic summaries → the existing dossier renderer.
-- Experience store: per-period rows for trend/regression detection, like `--track`.
+A customer-hosted data plane is a proposed architectural boundary, not permission to
+process real patient data in the present product. No conversation, identifier or
+metric should leave that boundary by default. Aggregates also require review for
+re-identification risk before an explicit export.
 
-## Explicit non-goals
+## Potential component reuse
 
-Hosted dashboards, streaming ingestion, alerting infrastructure, storing raw production
-conversations in the experience store, any real-PHI handling. Opening any of these is a
-§7 scope-entry trigger and a founder decision.
+Existing deterministic evaluators, configured judges, calibration artifacts and report
+schemas may be reusable after validating their suitability. The current local history
+store is not a production conversation database or tenant isolation system.
+
+## Acceptance before launch
+
+Require a threat model, legal approval, patient-data exclusion or formally approved
+handling model, a documented sampling policy, human calibration, privacy-preserving
+metrics, authorized access, deletion/restore tests, provider budgets and rollback.
+Measure drift and false positives against an agreed baseline; do not promise clinical
+outcomes from an automated score.
+
+This proposal belongs after the entry gates in the [roadmap](roadmap.md). Capacity and
+operating objectives are defined separately in [scalability](scalability.md) and
+[reliability](reliability.md).

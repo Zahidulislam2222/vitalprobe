@@ -1,21 +1,38 @@
-# VitalProbe tiers
+# Packaging and planned pricing
 
-## Free, open-source layer
+## Public software
 
-The free CLI includes the deterministic engine, public starter packs, the basic HTML report,
-local judges that users run themselves, and cloud judges used with customer-owned API keys.
+The Apache-2.0 repository includes the deterministic CLI, public fictional starter,
+HTML/JSON reports, REST/MCP target adapters, comparison, local history and dashboard.
+Local judges use the operator's hardware; cloud judges require customer-owned keys and
+separate explicit cost approval. Open-source licensing does not include any inference
+provider's usage charges or permission to use third-party content.
 
-## Paid layer
+## Proposed offers
 
-An offline signed license can unlock private clinical packs, maintained law mapping, learning
-features, report rebranding, and the MCP server. Exact packaging and prices remain founder
-decisions and may change before v0.1.
+These are the maintained website's planned offers, not available checkout products:
 
-## Honest limitation of offline licensing
+| Offer | Planned monthly price | Intended value | Entry gate |
+|---|---:|---|---|
+| Automated | $50 USD | Licensed content, maintained mappings and assisted workflow | Commercial policies, billing acceptance and content review |
+| Clinician-Reviewed | $70 USD | Automated workflow plus a defined qualified review service | All preceding gates plus named review capacity, scope and agreement |
 
-License checks implemented in open-source software can be bypassed by a sufficiently determined
-user. The durable paid value is therefore not the check itself: it is private pack content,
-maintained mappings, reviewed learning data, and ongoing expert work that do not ship in the
-public package. The license is the door; the private content is the wall.
+Public checkout is unavailable. Pricing, included workload, fair-use limits, taxes,
+refunds, renewal terms and review turnaround must be finalized before a sale. The
+Clinician-Reviewed offer name does not mean current draft material has been reviewed.
 
-Verification is local and offline. VitalProbe does not contact a license server.
+Website prices/copy belong to `web/src/data/pages.json`. Local Stripe test expectations
+belong to typed settings and `.env.example`: 5000/7000 minor units, USD monthly, with
+separately configured test Price IDs. Website copy cannot create or activate a Stripe Price.
+
+## Offline entitlements
+
+A signed local license can unlock separately supplied private content, law mapping,
+learning, rebranding and the MCP server according to its feature claims. Private
+licensed content is not in this public distribution; its own license terms apply.
+
+Verification is offline. An issued license remains usable until its signed validity
+ends; cancellation stops renewal, not immediate offline use. Older installations keep
+their bundled public verification key until upgraded. Open-source entitlement checks
+can be modified by an operator, so paid value must come from maintained content and
+qualified services rather than relying on an unbreakable client-side restriction.

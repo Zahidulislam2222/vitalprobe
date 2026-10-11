@@ -2,73 +2,97 @@
 
 [![CI](https://github.com/Zahidulislam2222/vitalprobe/actions/workflows/ci.yml/badge.svg)](https://github.com/Zahidulislam2222/vitalprobe/actions/workflows/ci.yml)
 
-**Safety and compliance evidence testing for healthcare & wellness AI assistants.**
+**Healthcare AI safety testing with fictional scenarios and inspectable evidence.**
 
-VitalProbe runs your chatbot, RAG app, or AI agent through synthetic healthcare safety scenarios (emergencies, medication questions, crisis language, prompt injection) and produces an evidence report you can show a stakeholder: what was tested, what failed, and proof for every verdict. Synthetic patients only — VitalProbe never needs real patient data.
+VitalProbe tests a chatbot, RAG application or AI agent against synthetic safety cases,
+records the observed responses and produces a structured HTML/JSON evidence report.
+Engineers can compare revisions, inspect failures and support qualified review using
+repeatable evidence. All patient scenarios are fictional.
 
-> Status: pre-0.1 source release. Runner, HTML/JSON reporting, local history, offline
-> entitlements, local-model demo audits, and baseline comparison are implemented. PyPI publishing
-> is intentionally deferred.
+[Website](https://vitalprobe.zahidul-islam.com) · [Documentation](docs/README.md) ·
+[Quickstart](docs/quickstart.md) · [Roadmap](docs/roadmap.md) · [Security](SECURITY.md)
 
-Explore the [public synthetic evidence demonstration](https://vitalprobe.zahidul-islam.com),
-or read the [saved HTML report](https://vitalprobe.zahidul-islam.com/evidence/).
-The public site is static; run new audits on your own machine.
+## Product and architecture
 
-## Quickstart
+The public repository contains the React/TypeScript frontend and Python backend. The
+website provides Product, Evidence, Pricing, Documentation and Trust pages. New audits
+run locally or in an operator-controlled environment; there is no hosted audit API or
+customer account system.
 
-Until the deferred PyPI release, install from source:
+| Component | What it provides |
+|---|---|
+| Python engine | Validated suites, REST/MCP targets, bounded execution and deterministic checks |
+| Evidence | Canonical JSON, self-contained HTML, secret redaction and baseline comparison |
+| Local workspace | Run history, dashboard, synthetic personas and calibration tooling |
+| Optional evaluation | Configured local judges; cloud judges require explicit cost approval |
+| Licensed surfaces | Offline entitlement verification, draft learning, law mappings and product MCP tools |
+| Frontend | Responsive static pages, evidence exploration, smooth scrolling and automatic decorative media |
 
-```bash
+Read the [product guide](docs/product.md), [architecture](docs/architecture.md),
+[backend interfaces](docs/backend.md) and [frontend guide](web/README.md).
+
+## Install and run
+
+Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. Install from source;
+PyPI publishing is intentionally deferred.
+
+```sh
 git clone https://github.com/Zahidulislam2222/vitalprobe.git
 cd vitalprobe
 uv sync --locked --all-extras
+uv run vitalprobe --version
 uv run vitalprobe validate --suite packs/emergency-core
 ```
 
-See the [complete quickstart](docs/quickstart.md), [test authoring guide](docs/writing-tests.md),
-and [CI regression workflow](docs/ci.md).
+For a complete local container workspace with a scripted synthetic target:
 
-See [technical release status](docs/release-status.md) for verification evidence and remaining
-human/provider gates. The optional Stripe sandbox is local-only and disabled by default;
-production payments and the clinician-reviewed tier remain unavailable.
-
-### One-command Docker demo
-
-With Docker installed, a single command starts the local dashboard plus a scripted demo
-health bot and runs everything inside containers — nothing is exposed beyond your own
-machine (the dashboard publishes on `127.0.0.1` only):
-
-```bash
+```sh
 docker compose up --build
 ```
 
-Then open http://127.0.0.1:8800, go to **Trigger run**, and submit
-`packs/emergency-core` against `http://demo-bot:8000/chat` to watch a full audit of the
-intentionally naive demo bot land on the dashboard. Run history persists in a named
-Docker volume across restarts. No accounts, no telemetry, no external assets — the
-demo works fully offline after the image build.
+Open `http://127.0.0.1:8800`. Host publishing remains pinned to loopback. The
+[quickstart](docs/quickstart.md) explains running an audit, reading outcomes, saving a
+baseline and configuring your own authorized staging target. No paid model is needed
+for deterministic checks.
 
 ## Evidence report
 
 ![VitalProbe HTML evidence report](docs/assets/report-preview.png)
 
-The report is self-contained, print-friendly, and records synthetic input, observed output,
-verdicts, deterministic evidence, and limitations.
+Each report records the tested inputs, observed responses, checks, verdicts and
+limitations. FAIL and ERROR records remain visible. Reports support review decisions;
+they are not legal advice, clinical assessments or regulatory approval.
 
-## Demo target
+## Engineering and operations
 
-The bundled [demo health bot](demo/README.md) supports deterministic scripted checks and an
-intentionally naive local Ollama mode for zero-cost real audits.
+- [Configuration](docs/configuration.md), [test authoring](docs/writing-tests.md),
+  [testing](TESTING.md) and [CI](docs/ci.md).
+- [Deployment and rollback](docs/deployment.md), [operations](docs/operations.md),
+  [security architecture](docs/security.md) and [privacy](docs/privacy.md).
+- [Legal responsibilities](docs/legal.md), [contributing](CONTRIBUTING.md),
+  [support](docs/support.md), [release status](docs/release-status.md) and [changelog](CHANGELOG.md).
 
-## Tiers
+## Growth and reliability
 
-- **Automated Report — available (this tool).** Run VitalProbe yourself and get the full HTML evidence report: every scenario, every check, every verdict, with evidence.
-- **Clinician-Reviewed Dossier — UPCOMING.** Everything in Automated, plus review of flagged failures by a named licensed clinician and a signed review attestation.
+The [scalability plan](docs/scalability.md) defines a future **1M+ concurrent-user**
+objective, separating website traffic, authenticated sessions and audit jobs. It covers
+CDN delivery, stateless coordination, customer-controlled workers, quotas, storage,
+provider limits, staged load tests, failure headroom and cost models.
 
-## What VitalProbe is not
+The [reliability plan](docs/reliability.md) defines an initial **99% availability SLO**,
+measurement windows, error budgets, incident response and recovery targets, with a
+roadmap toward higher objectives. These are engineering objectives with verification
+criteria; current measured evidence is recorded separately in the release status.
 
-Reports describe observed test results and their limitations. VitalProbe does not certify chatbots, does not grant regulatory approval, and is not legal advice.
+## Review and commercial status
 
-## License
+Clinical content remains draft pending named qualified review. Counsel review and
+50 qualified human calibration labels remain open. Planned paid offerings are described
+in [tiers](docs/tiers.md); public checkout is unavailable. The optional Stripe test lane
+is disabled by default, localhost-only and separate from production approval.
 
-Apache-2.0
+## Maintainer and license
+
+Maintained by [Zahidul Islam](https://github.com/Zahidulislam2222).
+The public code is [Apache-2.0](LICENSE). Separately licensed content is not part of
+this public distribution. See [asset provenance](web/ASSETS.md) for frontend media and fonts.

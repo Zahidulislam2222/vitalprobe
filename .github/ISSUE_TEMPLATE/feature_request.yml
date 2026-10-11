@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose a problem, use case and acceptance criteria.
+title: "Feature: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and intended result
+      description: Explain the user need and how success would be verified. Use fictional examples only.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Data and operational scope
+      description: Identify proposed accounts, hosting, storage, billing, third-party egress or spending.

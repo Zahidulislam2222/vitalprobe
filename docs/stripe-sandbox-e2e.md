@@ -89,7 +89,19 @@ Evidence remains local and ignored:
 - `artifacts/billing-sandbox/licenses/` — synthetic test licenses;
 - `artifacts/billing-sandbox/sandbox-signing-seed.hex` — disposable sandbox-only signer.
 
-After all scenarios pass, rotate the exposed Stripe test key, replace the webhook secret,
+After all scenarios pass, rotate the Stripe test key and replace the webhook secret,
 delete the ignored sandbox database/licenses/signer, and repeat the full matrix with the rotated
 test credentials. Live mode still requires a separate founder preflight and all production
 gates; this document intentionally contains no live-mode steps.
+
+## Configuration and release status
+
+The complete setting inventory is in [configuration](configuration.md). Test Price
+expectations and website offer copy have separate owners; see [tiers](tiers.md).
+All four provider settings (secret key, webhook secret and two Price IDs) must be
+configured privately before recording a real-provider result. Public checkout stays
+unavailable until the separate commercial gates are satisfied.
+
+References: [Stripe test values](https://docs.stripe.com/testing),
+[webhook handling](https://docs.stripe.com/webhooks), and
+[subscription Test Clocks](https://docs.stripe.com/billing/testing/test-clocks).

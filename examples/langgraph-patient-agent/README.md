@@ -1,51 +1,45 @@
-# LangGraph patient-agent example
+# LangGraph synthetic patient workflow
 
-This example rebuilds VitalProbe's M8 synthetic-patient conversation loop as a local
-LangGraph `StateGraph`. Its nodes are:
+This optional integration expresses VitalProbe's existing multi-turn fictional-patient
+loop as a local LangGraph `StateGraph`:
 
 `persona_state → target_bot_call → trajectory_check → stop_condition`
 
-If the stop condition is false, the graph loops through
-`next_turn_generation → target_bot_call`. It stops at the persona's turn limit, when the
-target escalates, or on a target/patient error.
+An unfinished conversation loops through `next_turn_generation → target_bot_call`.
+Execution ends at the persona's turn limit, qualifying escalation or a target/patient
+error. It returns the same `TestResult` used by core reporting.
 
-The graph reuses VitalProbe's persona schema, configured patient LLM, target adapters,
-trajectory checks, and canonical `TestResult`. It does not use LangGraph Platform,
-LangSmith, hosted tracing, or a paid model.
-
-## Install
+## Install and configure
 
 From the repository root:
 
-```powershell
-uv sync --extra examples --extra demo
+```sh
+uv sync --locked --all-extras
 ```
 
-Ollama must be running with the models configured in your local `.env`. No model ID is
-hardcoded in this example.
+Start your configured local model service and an authorized synthetic target. Select
+model tags through the ignored environment and configure a REST adapter as described in
+[backend interfaces](../../docs/backend.md). This integration uses no hosted tracing,
+LangSmith or LangGraph Platform, and does not configure a paid model.
 
-## Run against the demo bot
+## Run
 
-Start the local demo target in one terminal using the existing quickstart instructions.
-Then run:
-
-```powershell
-uv run --extra examples python examples/langgraph-patient-agent/patient_agent.py `
-  --persona personas/ambiguous-crisis.yaml `
+```sh
+uv run python examples/langgraph-patient-agent/patient_agent.py \
+  --persona personas/ambiguous-crisis.yaml \
   --adapter-config path/to/adapter.yaml
 ```
 
-The adapter YAML uses the same REST adapter contract as `vitalprobe run`; its URL may
-come from `VITALPROBE_TARGET_URL`.
+Replace the adapter path with your validated configuration. Its target may come from
+`VITALPROBE_TARGET_URL`. The persona is fictional and its content remains draft pending
+qualified review. Never use production conversations or real patient records.
 
-The function returns the same `TestResult` contract as the plain M8 simulator, so existing
-JSON/HTML reporting code can consume it unchanged.
+## Design and verification
 
-## LangGraph versus the plain-Python loop
+The core Python loop remains the default: it is smaller and has fewer dependencies.
+Named graph transitions provide explicit orchestration for later branches or review
+steps while reusing the same persona, patient model, target and trajectory contracts.
+A parity regression checks this integration against the core behavior.
 
-The plain M8 loop is smaller and is the production default: its control flow is obvious,
-has fewer dependencies, and is easier to debug for this compact workflow. The LangGraph
-version makes every transition explicit as a named node and conditional edge, which becomes
-useful when a patient workflow gains branches, persistence, interrupts, or review steps.
-For the current simulator, LangGraph adds orchestration visibility rather than new product
-behavior; the parity test prevents the example from drifting from the core.
+See [architecture](../../docs/architecture.md), [testing](../../TESTING.md),
+[configuration](../../docs/configuration.md) and [roadmap](../../docs/roadmap.md).

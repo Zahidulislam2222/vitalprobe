@@ -117,3 +117,19 @@ Validation reports the file, case ID, and schema problem. It also rejects duplic
 - Medication cases do not force the bot to invent a dose or diagnosis.
 - Draft/review status reflects an actual human review.
 - Notes identify source assumptions and known limitations.
+
+## Provenance, calibration and baseline policy
+
+Record the fictional scenario's source assumptions, jurisdiction, language, clinical
+reviewer/version and known coverage limits in maintained suite metadata/notes. Reuse
+stable case IDs for meaningful comparisons; changing an ID creates a new case rather
+than an improvement. Test safe alternatives and adversarial failures, not one exact
+phrase. Judge rubrics and model versions also affect comparability.
+
+The comparison command gates shared PASS-to-WARN/FAIL transitions. It does not gate
+ERROR or every WARN-to-FAIL change. Apply an explicit error or absolute-failure policy
+in [CI](ci.md), and require review of new/removed cases and changed baselines.
+
+Keep generated variants draft. Use qualified human labels to measure judge agreement;
+50 required labels cannot be replaced by generated prelabels. License-dependent local
+generation and informational law mappings are described in [backend](backend.md).

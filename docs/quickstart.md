@@ -1,92 +1,96 @@
 # Quickstart
 
-VitalProbe is pre-release software. PyPI publishing is intentionally deferred, so this guide runs
-the CLI from a source checkout.
+Produce a local evidence report without a cloud judge or payment provider. Python
+3.12+ and [uv](https://docs.astral.sh/uv/) are required. PyPI publication is deferred;
+install from the source repository.
 
-## Prerequisites
-
-- Python 3.12 or newer
-- [uv](https://docs.astral.sh/uv/)
-- A chatbot staging endpoint that accepts synthetic test traffic
-
-Never point the starter workflow at production conversations or real patient data.
-
-## Install from source
+## Install
 
 ```bash
 git clone https://github.com/Zahidulislam2222/vitalprobe.git
 cd vitalprobe
-uv sync --locked
+uv sync --locked --all-extras
 uv run vitalprobe --version
 ```
 
-## Try the bundled scripted target
+## Start the scripted safety target
 
-In terminal 1:
+In terminal A:
 
 ```bash
-uv run --extra demo uvicorn vitalprobe.demo.demo_health_bot:app --port 8000
+export DEMOBOT_PROVIDER=scripted
+uv run uvicorn vitalprobe.demo.demo_health_bot:app --host 127.0.0.1 --port 8000
 ```
 
-In terminal 2:
+`GET http://127.0.0.1:8000/health` returns `{"status":"ok","mode":"scripted"}`.
+The module name is a retained executable identifier. This deliberately weak target
+lets you verify that the engine records unsafe fictional responses.
+
+## Validate and run
+
+In terminal B:
 
 ```bash
 export VITALPROBE_TARGET_URL=http://127.0.0.1:8000/chat
+export VITALPROBE_JUDGE=none
 uv run vitalprobe validate --suite packs/emergency-core
-uv run vitalprobe run \
-  --suite packs/emergency-core \
-  --output artifacts/first-run \
-  --save-baseline baselines/demo
+uv run vitalprobe run   --suite packs/emergency-core   --output artifacts/first-run   --track   --save-baseline baselines/scripted
 ```
 
-The public starter pack is deliberately still marked `draft` pending founder clinical review.
-Local runs may use it for development, but it must not be represented as clinician-reviewed.
+On PowerShell, replace `export NAME=value` with `$env:NAME = "value"`.
+The public starter contains 25 fictional draft scenarios. Its scripted target has
+produced 3 PASS / 22 FAIL / 0 ERROR; these counts evaluate that target only. Exit 1 is
+expected because unsafe behavior is seeded. A failed audit still writes evidence:
 
-The run writes:
+- `artifacts/first-run/run.json`: canonical structured result.
+- `artifacts/first-run/report.html`: self-contained readable report.
+- `baselines/scripted/run.json`: baseline copy.
 
-- `artifacts/first-run/run.json` — canonical machine-readable result
-- `artifacts/first-run/report.html` — self-contained evidence dossier
-- `baselines/demo/run.json` — canonical baseline copy
+Open the report locally and inspect the actual response and failed checks. Draft
+clinical content is usable for development but has not received qualified clinical
+review. `validate --release` rejects draft content; do not change its status yourself.
 
-Exit code `0` means PASSED or PASSED_WITH_WARNINGS, `1` means observed test failure, and `2` means
-a runner/configuration error. A failing demo result is expected because some scripted responses
-are intentionally unsafe.
-
-## Compare a later run
+## Compare and inspect history
 
 ```bash
-uv run vitalprobe compare \
-  --baseline baselines/demo/run.json \
-  --current artifacts/later-run/run.json
+uv run vitalprobe run --suite packs/emergency-core --output artifacts/later-run --track
+uv run vitalprobe compare   --baseline baselines/scripted/run.json   --current artifacts/later-run/run.json
+uv run vitalprobe history --target http://127.0.0.1:8000/chat
 ```
 
-Comparison exits `1` only when a shared case regresses from PASS to WARN/FAIL. It also reports
-improvements, new cases, and removed cases.
+Comparison gates PASS-to-WARN/FAIL changes in shared cases. It reports new and removed
+cases separately. ERROR needs an additional explicit gate; use the complete workflow
+in [CI](ci.md). Exit 0 does not establish clinical safety or overall readiness.
 
-## Test your own endpoint
+## Use your own fictional staging suite
 
-Copy the starter pack, adjust its `adapter.default.yaml` to match your request and response shape,
-and set secrets only through environment variables:
+Copy the public suite into a new directory, maintain draft status, and edit its adapter
+YAML to match the staging API. Configure its endpoint and required authentication
+through environment variables. See [backend interfaces](backend.md), [configuration](configuration.md)
+and [test authoring](writing-tests.md). Verify you control the target before sending traffic.
+
+Do not use real patients, production conversations or real personal data. Do not
+publish generated response artifacts without reviewing their contents.
+
+## Local dashboard and containers
 
 ```bash
-export VITALPROBE_TARGET_URL=https://staging.example.test/chat
-export VITALPROBE_TARGET_TOKEN=replace-with-a-revocable-staging-token
-uv run vitalprobe run --suite path/to/your-suite --output artifacts/current
+uv run vitalprobe dashboard
 ```
 
-Do not commit `.env`, tokens, generated reports containing customer responses, or real patient
-information.
+The dashboard defaults to `http://127.0.0.1:8800`; keep it on loopback. It is an
+operator interface without a public account/authentication layer. Use `--help` for
+available options and [backend interfaces](backend.md) for its routes.
 
-## Optional local model
+Alternatively, `docker compose up --build` starts the loopback dashboard and scripted
+target. Compose configures the internal target address. Stop with `docker compose down`;
+its named artifact volume survives. Inspect the actual mounted data before removing
+any volume. This is local development, not a production hosting recipe.
 
-Install Ollama, pull a model suitable for your own machine, and configure its tag without changing
-source code:
+## Optional local inference
 
-```bash
-export DEMOBOT_PROVIDER=ollama
-export DEMOBOT_MODEL=your-local-model-tag
-export OLLAMA_HOST=http://localhost:11434
-```
-
-Then start the demo target as above. Local inference uses your machine and does not require a paid
-judge API.
+For a locally installed Ollama model, set `DEMOBOT_PROVIDER=ollama`,
+`DEMOBOT_MODEL` to its installed tag, and `OLLAMA_HOST` to your local endpoint, then
+restart the target. Simulator and draft generation instead use `VITALPROBE_LOCAL_MODEL`.
+Hardware and local model availability remain your responsibility. Cloud judging is a
+separate opt-in path requiring configured prices and explicit spending approval.
