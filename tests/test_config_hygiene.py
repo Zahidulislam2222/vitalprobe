@@ -14,6 +14,7 @@ PROVIDER_MODULES = [
     ROOT / "src/vitalprobe/judges/openai.py",
     ROOT / "src/vitalprobe/judges/anthropic.py",
     ROOT / "src/vitalprobe/judges/ollama.py",
+    ROOT / "src/vitalprobe/billing/stripe_client.py",
 ]
 
 
@@ -35,6 +36,7 @@ def test_provider_modules_contain_no_environment_specific_config() -> None:
     forbidden = [
         "api.openai.com",
         "api.anthropic.com",
+        "api.stripe.com",
         "localhost:11434",
         "2023-06-01",
         "~1500",
@@ -55,6 +57,8 @@ def test_scripted_responses_are_data_not_source_constants() -> None:
 def test_tracked_text_files_contain_no_obvious_private_keys() -> None:
     secret_patterns = [
         re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+        re.compile(r"\b(?:sk|rk)_(?:test|live)_[A-Za-z0-9_-]{20,}\b"),
+        re.compile(r"\bwhsec_[A-Za-z0-9_-]{20,}\b"),
         re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
         re.compile(r"BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY"),
     ]

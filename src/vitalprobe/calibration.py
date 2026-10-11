@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from vitalprobe.baseline import BaselineError, load_run
 from vitalprobe.judges.base import JudgeBackend, JudgeError, Rubric, load_rubric
 from vitalprobe.packs.loader import LoadedSuite
+from vitalprobe.report.json_report import redact_secrets
 from vitalprobe.schema import JudgeResult, TestCase, Verdict
 
 LABEL_VERDICTS = (Verdict.PASS, Verdict.WARN, Verdict.FAIL)
@@ -115,23 +116,30 @@ async def score_items(
     return scores
 
 
-def write_labels_template(items: list[CalibrationItem], path: Path) -> None:
+def write_labels_template(
+    items: list[CalibrationItem], path: Path, *, secrets: list[str] | None = None
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as handle:
+    try:
+        handle = path.open("x", encoding="utf-8", newline="")
+    except FileExistsError:
+        return
+    with handle:
         writer = csv.DictWriter(handle, fieldnames=TEMPLATE_FIELDS)
         writer.writeheader()
         for item in items:
             user_turns = [t.content for t in item.case.input.turns if t.role == "user"]
+            row = {
+                "item_id": item.item_id,
+                "case_id": item.case.id,
+                "severity": item.case.severity,
+                "category": item.case.category,
+                "last_user_message": user_turns[-1] if user_turns else "",
+                "response_text": item.response_text,
+                "human_verdict": "",
+            }
             writer.writerow(
-                {
-                    "item_id": item.item_id,
-                    "case_id": item.case.id,
-                    "severity": item.case.severity,
-                    "category": item.case.category,
-                    "last_user_message": user_turns[-1] if user_turns else "",
-                    "response_text": item.response_text,
-                    "human_verdict": "",
-                }
+                {key: redact_secrets(value, secrets or []) for key, value in row.items()}
             )
 
 
@@ -180,9 +188,7 @@ def agreement_for_judge(
 ) -> JudgeAgreement:
     severity_by_item = {item.item_id: item.case.severity for item in items}
     pairs: list[tuple[Verdict, Verdict]] = []
-    confusion = {
-        h.value: {j.value: 0 for j in LABEL_VERDICTS} for h in LABEL_VERDICTS
-    }
+    confusion = {h.value: {j.value: 0 for j in LABEL_VERDICTS} for h in LABEL_VERDICTS}
     per_severity: dict[str, list[bool]] = {}
     for score in scores:
         human = labels.get(score.item_id)
@@ -198,9 +204,7 @@ def agreement_for_judge(
         percent_agreement=(
             round(100 * sum(a is b for a, b in pairs) / len(pairs), 1) if pairs else 0.0
         ),
-        cohen_kappa=(
-            round(kappa, 3) if (kappa := cohen_kappa(pairs)) is not None else None
-        ),
+        cohen_kappa=(round(kappa, 3) if (kappa := cohen_kappa(pairs)) is not None else None),
         confusion=confusion,
         per_severity_agreement={
             severity: round(100 * sum(hits) / len(hits), 1)
@@ -215,6 +219,8 @@ def write_reports(
     scores: dict[str, list[ItemScore]],
     agreements: list[JudgeAgreement],
     labeled_count: int,
+    *,
+    secrets: list[str] | None = None,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -227,7 +233,7 @@ def write_reports(
         "agreement": [agreement.model_dump(mode="json") for agreement in agreements],
     }
     (output_dir / "calibration.json").write_text(
-        json.dumps(payload, indent=2), encoding="utf-8"
+        redact_secrets(json.dumps(payload, indent=2), secrets or []), encoding="utf-8"
     )
 
     lines = [
@@ -269,5 +275,5 @@ def write_reports(
             ]
             lines.append("")
     (output_dir / "calibration_report.md").write_text(
-        "\n".join(lines) + "\n", encoding="utf-8"
+        redact_secrets("\n".join(lines) + "\n", secrets or []), encoding="utf-8"
     )

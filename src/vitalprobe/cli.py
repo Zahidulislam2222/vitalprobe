@@ -639,8 +639,6 @@ def calibrate(
 
     output.mkdir(parents=True, exist_ok=True)
     template_path = output / "labels_template.csv"
-    write_labels_template(items, template_path)
-
     human_labels = {}
     if labels is not None:
         try:
@@ -648,6 +646,8 @@ def calibrate(
         except (OSError, CalibrationError) as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=EXIT_CONFIG_ERROR) from None
+    secrets = [settings.target_token, settings.openai_api_key, settings.anthropic_api_key]
+    write_labels_template(items, template_path, secrets=secrets)
     agreements = (
         [
             agreement_for_judge(name, judge_scores, human_labels, items)
@@ -656,7 +656,7 @@ def calibrate(
         if human_labels
         else []
     )
-    write_reports(output, items, scores, agreements, len(human_labels))
+    write_reports(output, items, scores, agreements, len(human_labels), secrets=secrets)
 
     if track and human_labels:
         case_by_item = {item.item_id: item.case.id for item in items}

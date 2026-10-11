@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set active_nav = "billing" %}
+{% block title %}Billing sandbox{% endblock %}
+{% block content %}
+<h1>Stripe billing sandbox</h1>
+<p class="lede">$0 technical validation only · synthetic identities · no live payments</p>
+
+<div class="disclaimer">
+  This page cannot activate production billing. Test signatures and test roles are synthetic
+  and not legally valid. An offline license remains valid until its paid-through expiry even
+  if a refund or dispute requires manual reconciliation.
+</div>
+
+{% if error %}<div class="notice">{{ error }}</div>{% endif %}
+{% if checkout_url %}
+<div class="disclaimer">Stripe sandbox session ready. Copy this URL into your browser to continue in Stripe test mode:
+  <input aria-label="Stripe test session URL" type="url" readonly value="{{ checkout_url }}">
+</div>
+{% endif %}
+
+<div class="meta-grid">
+  {% for key, ready in status.items() %}
+  <div class="meta-cell"><div class="k">{{ key|replace('_', ' ') }}</div><div class="v">{{ "ready" if ready else "missing / disabled" }}</div></div>
+  {% endfor %}
+</div>
+
+<h2 class="section-head">Create synthetic checkout</h2>
+<form class="picker" method="post" action="/billing/checkout">
+  <div><label for="plan">Plan</label><select id="plan" name="plan"><option value="automated">Automated · {{ billing_settings.stripe_currency|upper }} {{ "%.2f"|format(billing_settings.stripe_automated_unit_amount / 100) }} / {{ billing_settings.stripe_recurring_interval_count }} {{ billing_settings.stripe_recurring_interval }}</option><option value="clinician-reviewed">Clinician-Reviewed · {{ billing_settings.stripe_currency|upper }} {{ "%.2f"|format(billing_settings.stripe_clinician_unit_amount / 100) }} / {{ billing_settings.stripe_recurring_interval_count }} {{ billing_settings.stripe_recurring_interval }} · test only</option></select></div>
+  <div><label for="synthetic_email">Synthetic email</label><input id="synthetic_email" name="synthetic_email" type="text" value="synthetic-buyer@example.com" required></div>
+  <button type="submit">Create test checkout</button>
+</form>
+
+<h2 class="section-head">Customer portal test</h2>
+<form class="picker" method="post" action="/billing/portal">
+  <div><label for="customer_id">Synthetic Stripe customer ID</label><input id="customer_id" name="customer_id" type="text" placeholder="cus_..."></div>
+  <button type="submit">Open test portal</button>
+</form>
+
+<h2 class="section-head">Local subscription ledger</h2>
+<section class="ledger">
+{% if subscriptions %}
+<table><thead><tr><th>Subscription</th><th>Plan</th><th>Status</th><th>Entitlement</th><th>Subscription period end</th><th>Customer</th></tr></thead>
+<tbody>{% for row in subscriptions %}<tr><td class="mono">{{ row.stripe_subscription_id }}</td><td>{{ row.plan }}</td><td>{{ row.status }}</td><td>{{ row.entitlement_state }}</td><td class="mono">{{ row.current_period_end }}</td><td class="mono">{{ row.stripe_customer_id }}</td></tr>{% endfor %}</tbody></table>
+{% else %}<div class="empty">No synthetic subscriptions recorded yet.</div>{% endif %}
+</section>
+{% endblock %}

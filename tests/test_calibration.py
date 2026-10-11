@@ -178,9 +178,7 @@ class FakeJudge:
         from vitalprobe.judges._structured import parse_result
 
         score = 5 if "911" in response_text else 1
-        return parse_result(
-            {"score": score, "rationale": "seeded"}, rubric, "fake-local-model"
-        )
+        return parse_result({"score": score, "rationale": "seeded"}, rubric, "fake-local-model")
 
 
 def test_calibrate_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -199,13 +197,20 @@ def test_calibrate_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         cli.app,
         [
             "calibrate",
-            "--suite", str(suite),
-            "--responses", str(good),
-            "--responses", str(bad),
-            "--judges", "ollama:fake-a",
-            "--judges", "ollama:fake-b",
-            "--output", str(output),
-            "--rubric", "emergency-response-v1",
+            "--suite",
+            str(suite),
+            "--responses",
+            str(good),
+            "--responses",
+            str(bad),
+            "--judges",
+            "ollama:fake-a",
+            "--judges",
+            "ollama:fake-b",
+            "--output",
+            str(output),
+            "--rubric",
+            "emergency-response-v1",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -220,7 +225,7 @@ def test_calibrate_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         rows = list(csv.DictReader(handle))
     for row in rows:
         row["human_verdict"] = "PASS" if "911" in row["response_text"] else "FAIL"
-    labels_path = tmp_path / "labels.csv"
+    labels_path = template
     with labels_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
@@ -229,13 +234,20 @@ def test_calibrate_cli_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         cli.app,
         [
             "calibrate",
-            "--suite", str(suite),
-            "--responses", str(good),
-            "--responses", str(bad),
-            "--judges", "ollama:fake-a",
-            "--output", str(output),
-            "--rubric", "emergency-response-v1",
-            "--labels", str(labels_path),
+            "--suite",
+            str(suite),
+            "--responses",
+            str(good),
+            "--responses",
+            str(bad),
+            "--judges",
+            "ollama:fake-a",
+            "--output",
+            str(output),
+            "--rubric",
+            "emergency-response-v1",
+            "--labels",
+            str(labels_path),
         ],
     )
     assert result.exit_code == 0, result.output
@@ -257,10 +269,14 @@ def test_calibrate_cloud_judge_requires_yes_spend(
         cli.app,
         [
             "calibrate",
-            "--suite", str(suite),
-            "--responses", str(artifact),
-            "--judges", "anthropic",
-            "--output", str(tmp_path / "out"),
+            "--suite",
+            str(suite),
+            "--responses",
+            str(artifact),
+            "--judges",
+            "anthropic",
+            "--output",
+            str(tmp_path / "out"),
         ],
     )
     assert result.exit_code == 2
@@ -274,11 +290,49 @@ def test_calibrate_rejects_unknown_judge_spec(tmp_path: Path) -> None:
         cli.app,
         [
             "calibrate",
-            "--suite", str(suite),
-            "--responses", str(artifact),
-            "--judges", "mystery",
-            "--output", str(tmp_path / "out"),
+            "--suite",
+            str(suite),
+            "--responses",
+            str(artifact),
+            "--judges",
+            "mystery",
+            "--output",
+            str(tmp_path / "out"),
         ],
     )
     assert result.exit_code == 2
     assert "unknown judge spec" in result.output
+
+
+def test_labels_template_preserves_existing_human_work(tmp_path: Path) -> None:
+    from vitalprobe.calibration import write_labels_template
+
+    path = tmp_path / "labels_template.csv"
+    original = "item_id,human_verdict\nsynthetic-item,PASS\n"
+    path.write_text(original, encoding="utf-8")
+    write_labels_template([], path)
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_calibration_writers_redact_known_tokens(tmp_path: Path) -> None:
+    from vitalprobe.calibration import (
+        CalibrationItem,
+        ItemScore,
+        write_labels_template,
+        write_reports,
+    )
+
+    suite = load_suite(_suite_dir(tmp_path))
+    token = "test-redaction-value"
+    items = [CalibrationItem("synthetic", suite.cases[0], "response " + token)]
+    write_labels_template(items, tmp_path / "labels.csv", secrets=[token])
+    write_reports(
+        tmp_path,
+        items,
+        {"synthetic": [ItemScore(item_id="synthetic", rationale=token, error=token)]},
+        [],
+        0,
+        secrets=[token],
+    )
+    for name in ("labels.csv", "calibration.json", "calibration_report.md"):
+        assert token not in (tmp_path / name).read_text(encoding="utf-8")

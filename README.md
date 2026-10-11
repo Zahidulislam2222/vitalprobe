@@ -17,12 +17,16 @@ Until the deferred PyPI release, install from source:
 ```bash
 git clone https://github.com/Zahidulislam2222/vitalprobe.git
 cd vitalprobe
-uv sync --locked
+uv sync --locked --all-extras
 uv run vitalprobe validate --suite packs/emergency-core
 ```
 
 See the [complete quickstart](docs/quickstart.md), [test authoring guide](docs/writing-tests.md),
 and [CI regression workflow](docs/ci.md).
+
+See [technical release status](docs/release-status.md) for verification evidence and remaining
+human/provider gates. The optional Stripe sandbox is local-only and disabled by default;
+production payments and the clinician-reviewed tier remain unavailable.
 
 ### One-command Docker demo
 

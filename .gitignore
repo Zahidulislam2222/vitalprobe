@@ -25,6 +25,9 @@ CREDENTIALS.md
 # Local-only folders
 tests-local/
 artifacts/
+memory/
+PROJECT-DOSSIER.md
+.venv-wsl/
 
 # Founder acceptance script — references private-repo paths, stays local (CLAUDE.md rule)
 TESTING-FULL.md

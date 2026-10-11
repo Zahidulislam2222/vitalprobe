@@ -8,17 +8,24 @@ form that shells out to the existing CLI run path.
 """
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
 from vitalprobe.baseline import RunComparison, compare_runs
+from vitalprobe.billing.models import BillingPlan
+from vitalprobe.billing.service import BillingError, BillingRetryError, BillingSandboxService
 from vitalprobe.config import Settings, get_settings
 from vitalprobe.dashboard.services import (
     RunExecutor,
@@ -46,22 +53,49 @@ def create_app(
     store: ExperienceStore | None = None,
     settings: Settings | None = None,
     run_executor: RunExecutor | None = None,
+    billing: BillingSandboxService | None = None,
 ) -> FastAPI:
     """Build the dashboard app around an experience store (injectable for tests)."""
     dashboard_store = store if store is not None else ExperienceStore()
     app_settings = settings if settings is not None else get_settings()
     executor = run_executor if run_executor is not None else run_cli_subprocess
+    billing_service = billing
+    if billing_service is None and app_settings.billing_sandbox_enabled:
+        billing_service = BillingSandboxService(app_settings)
     templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        if billing_service is not None:
+            await billing_service.aclose()
+
     app = FastAPI(
         title="VitalProbe dashboard",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        lifespan=lifespan,
     )
 
-    def _locked(
-        request: Request, nav: str, title: str, reason: str
-    ) -> HTMLResponse:
+    @app.middleware("http")
+    async def local_billing_boundary(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        if billing_service is not None and request.url.path.startswith("/billing"):
+            try:
+                local_peer = (
+                    request.client is not None and ip_address(request.client.host).is_loopback
+                )
+            except ValueError:
+                local_peer = False
+            if not local_peer or request.url.hostname not in _LOCAL_ORIGIN_HOSTS:
+                return JSONResponse(
+                    {"detail": "billing sandbox requires loopback access"}, status_code=403
+                )
+        return await call_next(request)
+
+    def _locked(request: Request, nav: str, title: str, reason: str) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             "locked.html",
@@ -109,9 +143,7 @@ def create_app(
         )
 
     @app.get("/compare", response_class=HTMLResponse)
-    def compare_view(
-        request: Request, baseline: str = "", current: str = ""
-    ) -> HTMLResponse:
+    def compare_view(request: Request, baseline: str = "", current: str = "") -> HTMLResponse:
         comparison: RunComparison | None = None
         error = ""
         if baseline and current:
@@ -184,9 +216,7 @@ def create_app(
             },
         )
 
-    def _trigger_context(
-        suite: str = "", target_url: str = ""
-    ) -> dict[str, object]:
+    def _trigger_context(suite: str = "", target_url: str = "") -> dict[str, object]:
         return {
             "suite": suite,
             "target_url": target_url,
@@ -203,18 +233,14 @@ def create_app(
     @app.post("/trigger-run", response_class=HTMLResponse)
     async def trigger_run(request: Request) -> HTMLResponse:
         if not _origin_is_local(request):
-            raise HTTPException(
-                status_code=403, detail="cross-site form submissions are rejected"
-            )
+            raise HTTPException(status_code=403, detail="cross-site form submissions are rejected")
         form = await request.form()
         suite_value = str(form.get("suite", "")).strip()
         target_url = str(form.get("target_url", "")).strip()
         context = _trigger_context(suite_value, target_url)
         suite_path = Path(suite_value)
         if not suite_value or not suite_path.is_dir():
-            context["error"] = (
-                "suite path must be an existing directory of test-case YAML files"
-            )
+            context["error"] = "suite path must be an existing directory of test-case YAML files"
             return templates.TemplateResponse(request, "trigger.html", context)
 
         stamp = f"{datetime.now(UTC):%Y%m%d-%H%M%S}-{uuid4().hex[:6]}"
@@ -232,5 +258,97 @@ def create_app(
         context["output_tail"] = outcome.output[-app_settings.dashboard_output_tail_chars :]
         context["output_dir"] = str(output_dir)
         return templates.TemplateResponse(request, "trigger.html", context)
+
+    def _billing_context(error: str = "", checkout_url: str = "") -> dict[str, object]:
+        if billing_service is None:
+            status = {
+                "enabled": False,
+                "test_key": False,
+                "webhook_secret": False,
+                "automated_price": False,
+                "clinician_price": False,
+            }
+            subscriptions: list[object] = []
+        else:
+            status = billing_service.configuration_status()
+            subscriptions = list(billing_service.store.subscriptions())
+        return {
+            "status": status,
+            "subscriptions": subscriptions,
+            "error": error,
+            "checkout_url": checkout_url,
+            "billing_settings": app_settings,
+        }
+
+    @app.get("/billing", response_class=HTMLResponse)
+    def billing_status(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(request, "billing.html", _billing_context())
+
+    @app.post("/billing/checkout", response_class=HTMLResponse)
+    async def billing_checkout(request: Request) -> HTMLResponse:
+        if not _origin_is_local(request):
+            raise HTTPException(status_code=403, detail="cross-site form submissions are rejected")
+        if billing_service is None:
+            return templates.TemplateResponse(
+                request, "billing.html", _billing_context("Stripe sandbox is disabled")
+            )
+        form = await request.form()
+        try:
+            plan = BillingPlan(str(form.get("plan", "")))
+            email = str(form.get("synthetic_email", ""))
+            base = str(request.base_url).rstrip("/")
+            checkout = await billing_service.create_checkout(
+                plan,
+                synthetic_email=email,
+                success_url=f"{base}/billing?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{base}/billing?checkout=cancelled",
+            )
+        except (BillingError, ValueError) as exc:
+            return templates.TemplateResponse(request, "billing.html", _billing_context(str(exc)))
+        return templates.TemplateResponse(
+            request, "billing.html", _billing_context(checkout_url=checkout.url)
+        )
+
+    @app.post("/billing/portal", response_class=HTMLResponse)
+    async def billing_portal(request: Request) -> HTMLResponse:
+        if not _origin_is_local(request):
+            raise HTTPException(status_code=403, detail="cross-site form submissions are rejected")
+        if billing_service is None:
+            return templates.TemplateResponse(
+                request, "billing.html", _billing_context("Stripe sandbox is disabled")
+            )
+        form = await request.form()
+        try:
+            base = str(request.base_url).rstrip("/")
+            url = await billing_service.create_portal(
+                str(form.get("customer_id", "")), f"{base}/billing"
+            )
+        except BillingError as exc:
+            return templates.TemplateResponse(request, "billing.html", _billing_context(str(exc)))
+        return templates.TemplateResponse(
+            request, "billing.html", _billing_context(checkout_url=url)
+        )
+
+    @app.post("/billing/webhook", response_class=JSONResponse)
+    async def billing_webhook(request: Request) -> JSONResponse:
+        if billing_service is None:
+            raise HTTPException(status_code=404, detail="Stripe sandbox is disabled")
+        payload = await request.body()
+        signature = request.headers.get("stripe-signature", "")
+        try:
+            outcome = await billing_service.handle_webhook(payload, signature)
+        except BillingRetryError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from None
+        except BillingError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        return JSONResponse(
+            {
+                "received": True,
+                "event_id": outcome.event_id,
+                "outcome": outcome.outcome,
+                "duplicate": outcome.duplicate,
+            },
+            status_code=503 if outcome.outcome == "manual-review-unmatched-payment-event" else 200,
+        )
 
     return app

@@ -6,6 +6,8 @@ CREDENTIALS.md
 artifacts/
 dist/
 tests-local/
+memory/
+PROJECT-DOSSIER.md
 .git/
 .venv/
 **/__pycache__/

@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -74,6 +74,44 @@ class Settings(BaseSettings):
     drafts_dir: Path = Path("artifacts/drafts")
     # Law content lives in the PRIVATE packs bundle; there is no valid default path here.
     law_dir: Path | None = None
+    # Founder-authorized $0 technical lane. Disabled by default and test-mode only.
+    billing_sandbox_enabled: bool = False
+    stripe_secret_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("STRIPE_SECRET_KEY", "VITALPROBE_STRIPE_SECRET_KEY"),
+    )
+    stripe_webhook_secret: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("STRIPE_WEBHOOK_SECRET", "VITALPROBE_STRIPE_WEBHOOK_SECRET"),
+    )
+    stripe_api_base_url: str = "https://api.stripe.com/v1"
+    stripe_timeout_s: float = Field(30, gt=0)
+    stripe_recurring_interval: Literal["day", "week", "month", "year"] = "month"
+    stripe_recurring_interval_count: int = Field(1, ge=1)
+    stripe_processing_lease_s: int = Field(60, ge=1)
+    stripe_automated_price_id: str = ""
+    stripe_clinician_price_id: str = ""
+    stripe_automated_unit_amount: int = Field(5000, ge=0)
+    stripe_clinician_unit_amount: int = Field(7000, ge=0)
+    stripe_currency: str = "usd"
+    stripe_webhook_tolerance_s: int = Field(300, ge=1)
+    billing_db_path: Path = Path("artifacts/billing-sandbox.db")
+    billing_license_dir: Path = Path("artifacts/billing-sandbox/licenses")
+    billing_sandbox_signing_seed_file: Path = Path(
+        "artifacts/billing-sandbox/sandbox-signing-seed.hex"
+    )
+    billing_automated_features: str = "private_packs,law_mapping,learning"
+    billing_clinician_features: str = "private_packs,law_mapping,learning,rebranding,mcp_server"
+
+    @model_validator(mode="after")
+    def require_local_sandbox(self) -> "Settings":
+        if self.billing_sandbox_enabled and self.dashboard_host not in {
+            "127.0.0.1",
+            "localhost",
+            "::1",
+        }:
+            raise ValueError("billing sandbox requires a loopback dashboard bind")
+        return self
 
 
 def get_settings() -> Settings:

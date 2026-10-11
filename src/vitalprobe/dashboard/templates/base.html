@@ -156,6 +156,7 @@
       <a href="/law" {% if active_nav == "law" %}aria-current="page"{% endif %}>Law</a>
       <a href="/calibration" {% if active_nav == "calibration" %}aria-current="page"{% endif %}>Calibration</a>
       <a href="/license" {% if active_nav == "license" %}aria-current="page"{% endif %}>License</a>
+      <a href="/billing" {% if active_nav == "billing" %}aria-current="page"{% endif %}>Billing test</a>
     </nav>
   </div>
 </header>
@@ -163,8 +164,8 @@
 {% block content %}{% endblock %}
 </main>
 <footer class="colophon">
-  Runs entirely on this machine — no accounts, no cloud, no telemetry.
-  Synthetic test data only; reports are observed results, not a compliance determination.
+  Audit runs stay on this machine — no accounts and no telemetry. The optional billing sandbox
+  sends synthetic payment-test data to Stripe test mode only when explicitly enabled.
 </footer>
 </body>
 </html>
