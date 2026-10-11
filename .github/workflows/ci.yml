@@ -28,6 +28,14 @@ jobs:
         run: uv build
       - name: Validate distributions
         run: uvx --from twine twine check dist/*
+      - name: Smoke-test freshly resolved wheel dependencies
+        shell: bash
+        run: |
+          wheel_env="$RUNNER_TEMP/vitalprobe-wheel"
+          uv venv "$wheel_env"
+          uv pip install --python "$wheel_env/bin/python" dist/*.whl
+          "$wheel_env/bin/python" -I -m vitalprobe --help
+          "$wheel_env/bin/python" -I -m vitalprobe validate --suite packs/emergency-core
 
   secrets:
     runs-on: ubuntu-latest
